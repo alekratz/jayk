@@ -1,0 +1,27 @@
+*.log
+*.pyc
+.cache/
+.coverage
+.idea/
+.vscode/
+jayk.egg-info/
+build/
+dist/
+docs/build/
+wheelhouse/
+venv/
+
+### Vim ###
+# swap
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-v][a-z]
+[._]sw[a-p]
+# session
+[Ss]ession.vim
+# temporary
+.netrwhist
+*~
+# auto-generated tag files
+tags
+
