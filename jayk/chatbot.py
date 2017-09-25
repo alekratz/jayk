@@ -7,7 +7,7 @@ from . import util
 from . import irc
 
 
-class ChatbotModule(metaclass=ABCMeta):
+class ChatbotModule(object, metaclass=ABCMeta):
     def __init__(self, rooms: Set[str]):
         """
         Initializes a chatbot module.
@@ -15,7 +15,7 @@ class ChatbotModule(metaclass=ABCMeta):
         """
         self.rooms = rooms
 
-    def on_message(self, client: 'Chatbot', room: str, sender: str, message: str):
+    def on_message(self, client: 'Chatbot', room: str, sender, message: str):
         """
         Called when a channel message is received.
         :param room: the room the message was sent to. If this is a private message, this is set to None.
@@ -23,28 +23,71 @@ class ChatbotModule(metaclass=ABCMeta):
         :param message: the message content.
         """
 
-    def on_join_room(self, room: str):
+    def on_join_room(self, room: str, who: Optional[str]):
         """
         Called when the bot enters a room.
         :param room: the room that was joined.
+        :param who: the nickname of the person who joined the room. If None, then it refers to the bot.
         """
 
 
+class CommandModule(ChatbotModule):
+    """
+    A command module is a Chatbot module that only responds to a set of predefined commands.
+    """
+    def __init__(self, rooms: Set[str], commands: Set[str]):
+        """
+        Initializes the command module bot to join the given channels, and respond to the given set of commands.
+        """
+        super().__init__(rooms)
+        self.commands = commands
+
+    def on_message(self, client: 'Chatbot', room: str, sender, message: str):
+        parts = str(message).split()
+        if len(parts) == 0:
+            return
+        cmd = parts[0]
+        if cmd in self.commands:
+            self.on_command(client, cmd, room, sender, message)
+
+    def on_command(self, client: 'Chatbot', cmd: str, room: str, sender, message: str):
+        """
+        Called when the first word of a message is one of the commands specified by this object.
+        """
+
+
+def command_bot(rooms: Set[str], commands: Set[str]):
+    def wrapper(function):
+        class CommandBot(CommandModule):
+            def __init__(self):
+                super().__init__(rooms, commands)
+
+            def on_command(self, client, cmd, room, sender, message):
+                function(client, cmd, room, sender, message)
+
+        return CommandBot
+    return wrapper
+
+
 class Chatbot(metaclass=ABCMeta):
+    """
+    A chatbot abstraction, which provides a number of methods that the chatbot can use to interact with the users in
+    some generic chatroom or protocol.
+    """
     def __init__(self, connect_info: common.ConnectInfo, modules: Collection[ChatbotModule]):
         self.connect_info = connect_info
         self.modules = modules
         self.rooms = set.union(*[set(m.rooms) for m in modules])
 
-    def on_message(self, room: str, sender: str, message: str):
+    def on_message(self, room: str, sender, message: str):
         for mod in self.modules:
             if room in mod.rooms:
                 mod.on_message(self, room, sender, message)
 
-    def on_join_room(self, room: str):
+    def on_join_room(self, room: str, who: Optional[str]):
         for mod in self.modules:
             if room in mod.rooms:
-                mod.on_join_room(self, room)
+                mod.on_join_room(self, room, who)
 
     @abstractmethod
     def send_message(self, room: str, msg: str):
@@ -62,7 +105,7 @@ class Chatbot(metaclass=ABCMeta):
             try:
                 loop.run_forever()
             except KeyboardInterrupt as e:
-                print("ctrl-C caught, exiting")
+                self.info("ctrl-C caught, exiting")
                 loop.stop()
         else:
             loop.run_forever()
@@ -101,11 +144,14 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
         Handles an IRC message.
         """
         if message.command == 'RPL_MYINFO':
+            # MYINFO command handling; we've joined successfully and we're in a room.
             for ch in self.rooms:
                 self._send_command("JOIN", ch)
         elif message.command in irc.response.NICK_ERRORS:
+            # Invalid NICK errors handled here
             self.__try_next_nick()
         elif message.command == 'PING':
+            # PING/PONG command handling
             if len(msg.params) == 0:
                 # NOTE: throw an error?
                 self.error('invalid IRC PING message received: %s', msg)
@@ -114,7 +160,14 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
             if msg[0] != ':':
                 msg = ':' + msg
             self._send_command('PONG', msg)
+        elif message.command == 'JOIN':
+            pass
+        elif message.command == 'KICK':
+            pass
+        elif message.command == 'PART':
+            pass
         elif message.command == 'PRIVMSG':
+            # PRIVMSG command handling
             if not message.user or message.user.nick == self.nick:
                 return
             room = message.params[0]
@@ -156,3 +209,4 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
     @property
     def nick(self):
         return self.__nick
+
