@@ -4,7 +4,6 @@ from abc import ABCMeta, abstractmethod
 from typing import *
 from ..util import LogMixin
 from .. import common
-
 from . import response
 
 

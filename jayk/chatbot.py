@@ -7,12 +7,13 @@ from . import util
 from . import irc
 
 
-class ChatbotModule(object, metaclass=ABCMeta):
+class ChatbotModule(util.LogMixin, metaclass=ABCMeta):
     def __init__(self, rooms: Set[str]):
         """
         Initializes a chatbot module.
         :param rooms: the list of rooms this bot is active in.
         """
+        super().__init__(__name__)
         self.rooms = rooms
 
     def on_message(self, client: 'Chatbot', room: str, sender, message: str):
@@ -23,7 +24,7 @@ class ChatbotModule(object, metaclass=ABCMeta):
         :param message: the message content.
         """
 
-    def on_join_room(self, room: str, who: Optional[str]):
+    def on_join_room(self, client: 'Chatbot', room: str, who: Optional[str]):
         """
         Called when the bot enters a room.
         :param room: the room that was joined.
@@ -56,8 +57,8 @@ class CommandModule(ChatbotModule):
         """
 
 
-def command_bot(rooms: Set[str], commands: Set[str]):
-    def wrapper(function):
+def command_bot(commands: Set[str]):
+    def wrapper(function, rooms: Set[str]):
         class CommandBot(CommandModule):
             def __init__(self):
                 super().__init__(rooms, commands)
@@ -152,7 +153,7 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
             self.__try_next_nick()
         elif message.command == 'PING':
             # PING/PONG command handling
-            if len(msg.params) == 0:
+            if len(message.params) == 0:
                 # NOTE: throw an error?
                 self.error('invalid IRC PING message received: %s', msg)
                 return
@@ -161,7 +162,9 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
                 msg = ':' + msg
             self._send_command('PONG', msg)
         elif message.command == 'JOIN':
-            pass
+            who = None if message.user.nick == self.nick else message.user
+            room = message.params[0]
+            self.on_join_room(room, who)
         elif message.command == 'KICK':
             pass
         elif message.command == 'PART':
@@ -209,4 +212,11 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
     @property
     def nick(self):
         return self.__nick
+
+
+def chatbot_factory(connect_info: common.ConnectInfo, modules):
+    if isinstance(connect_info, irc.ConnectInfo):
+        return IRCChatbot(connect_info, modules)
+    else:
+        raise ValueError("Unknown ConnectInfo type: {}".format(repr(connect_info)))
 
