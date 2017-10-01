@@ -86,7 +86,7 @@ class Message(object):
         """
         message = ''
         if self.prefix:
-            message += f':{self.prefix} '
+            message += ':{} '.format(self.prefix)
         message += self.command.upper()
         if self.params:
             message += " {}".format(' '.join(self.params))
