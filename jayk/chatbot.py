@@ -75,7 +75,7 @@ class Chatbot(metaclass=ABCMeta):
     A chatbot abstraction, which provides a number of methods that the chatbot can use to interact with the users in
     some generic chatroom or protocol.
     """
-    def __init__(self, connect_info: common.ConnectInfo, modules: Collection[ChatbotModule]):
+    def __init__(self, connect_info: common.ConnectInfo, modules: Sequence[ChatbotModule]):
         self.connect_info = connect_info
         self.modules = modules
         self.rooms = set.union(*[set(m.rooms) for m in modules])
@@ -120,7 +120,7 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
         * server authentication
         * nickname management
     """
-    def __init__(self, connect_info: irc.ConnectInfo, modules: Collection[ChatbotModule]):
+    def __init__(self, connect_info: irc.ConnectInfo, modules: Sequence[ChatbotModule]):
         """
         Initializes the IRC chat bot.
         :param connect_info: the connection information to use
