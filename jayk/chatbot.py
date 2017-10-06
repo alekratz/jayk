@@ -26,8 +26,15 @@ class ChatbotModule(util.LogMixin):
 
     def on_join_room(self, client: 'Chatbot', room: str, who: Optional[str]):
         """
-        Called when the bot enters a room.
+        Called when a user enters a room.
         :param room: the room that was joined.
+        :param who: the nickname of the person who joined the room. If None, then it refers to the bot.
+        """
+
+    def on_leave_room(self, client: 'Chatbot', room: str, who: Optional[str]):
+        """
+        Called when a user leaves the room.
+        :param room: the room that was left.
         :param who: the nickname of the person who joined the room. If None, then it refers to the bot.
         """
 
@@ -106,6 +113,11 @@ class Chatbot(metaclass=ABCMeta):
             if room in mod.rooms:
                 mod.on_join_room(self, room, who)
 
+    def on_leave_room(self, room: str, who: Optional[str]):
+        for mod in self.modules:
+            if room in mod.rooms:
+                mod.on_leave_room(self, room, who)
+
     @abstractmethod
     def send_message(self, room: str, msg: str):
         pass
@@ -178,13 +190,23 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
                 msg = ':' + msg
             self._send_command('PONG', msg)
         elif message.command == 'JOIN':
+            # TODO : consolodate differences between "who" arg in on_join_room and on_leave_room
+            # Join handling
             who = None if message.user.nick == self.nick else message.user
             room = message.params[0]
             self.on_join_room(room, who)
         elif message.command == 'KICK':
-            pass
+            # TODO : consolodate differences between "who" arg in on_join_room and on_leave_room
+            # Kick handling
+            room = message.params[0]
+            who = message.params[1]
+            self.on_leave_room(room, None if who == self.nick else who)
         elif message.command == 'PART':
-            pass
+            # TODO : consolodate differences between "who" arg in on_join_room and on_leave_room
+            # Part handling
+            room = message.params[0]
+            who = message.user.nick
+            self.on_leave_room(room, None if who == self.nick else who)
         elif message.command == 'PRIVMSG':
             # PRIVMSG command handling
             if not message.user or message.user.nick == self.nick:

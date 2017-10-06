@@ -31,3 +31,13 @@ class HelpModule(metaclass=JaykMeta):
     def add_module_help(self, module):
         self.help_sections += [module]
 
+
+class Autorejoin(metaclass=JaykMeta):
+    def __init__(self, rejoin_time=1, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.rejoin_time = rejoin_time
+
+    def on_leave_room(self, client, room, user):
+        if user is None and room in self.rooms:
+            self.info("Kicked from %s; rejoining in %s second(s)", room, self.rejoin_time)
+            client._schedule_command(self.rejoin_time, "JOIN", room)

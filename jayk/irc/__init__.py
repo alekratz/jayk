@@ -1,5 +1,6 @@
 import re
 import asyncio
+import functools
 from abc import ABCMeta, abstractmethod
 from typing import *
 from ..util import LogMixin
@@ -175,4 +176,7 @@ class ClientProtocol(asyncio.Protocol, LogMixin, metaclass=ABCMeta):
         Schedules a command to be sent in a given number of seconds.
 
         """
-        self._send_command(command, *params)
+        loop = asyncio.get_event_loop()
+        send_command = functools.partial(self._send_command, command, *params)
+        loop.call_later(timeout, send_command)
+        # TODO : store the callback from loop.call_later() somewhere, so we can cancel messages or whatever
