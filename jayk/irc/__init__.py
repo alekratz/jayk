@@ -169,3 +169,10 @@ class ClientProtocol(asyncio.Protocol, LogMixin, metaclass=ABCMeta):
         :param params: any parameters the command expects
         """
         self._send_message(self._make_message(command, *params))
+
+    def _schedule_command(self, timeout, command: str, *params: str):
+        """
+        Schedules a command to be sent in a given number of seconds.
+
+        """
+        self._send_command(command, *params)

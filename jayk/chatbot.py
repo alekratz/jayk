@@ -7,7 +7,7 @@ from . import util
 from . import irc
 
 
-class ChatbotModule(util.LogMixin, metaclass=ABCMeta):
+class ChatbotModule(util.LogMixin):
     def __init__(self, rooms: Set[str]):
         """
         Initializes a chatbot module.
@@ -32,41 +32,57 @@ class ChatbotModule(util.LogMixin, metaclass=ABCMeta):
         """
 
 
-class CommandModule(ChatbotModule):
-    """
-    A command module is a Chatbot module that only responds to a set of predefined commands.
-    """
-    def __init__(self, rooms: Set[str], commands: Set[str]):
+class JaykModule(ChatbotModule):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def on_message(self, client, room, sender, msg):
+        parts = msg.split()
+        if parts:
+            cmd = parts[0]
+            if cmd in self.commands:
+                self.commands[cmd](self, client, cmd, room, sender, msg)
+    # Module metadata methods
+    @staticmethod
+    def author():
         """
-        Initializes the command module bot to join the given channels, and respond to the given set of commands.
+        Gets the name of the author for this module
         """
-        super().__init__(rooms)
-        self.commands = commands
+        return ''
 
-    def on_message(self, client: 'Chatbot', room: str, sender, message: str):
-        parts = str(message).split()
-        if len(parts) == 0:
-            return
-        cmd = parts[0]
-        if cmd in self.commands:
-            self.on_command(client, cmd, room, sender, message)
-
-    def on_command(self, client: 'Chatbot', cmd: str, room: str, sender, message: str):
+    @staticmethod
+    def name():
         """
-        Called when the first word of a message is one of the commands specified by this object.
+        Gets the name of this module
         """
+        return ''
+
+    @staticmethod
+    def about():
+        """
+        Gets a basic description of this module
+        """
+        return ''
 
 
-def command_bot(commands: Set[str]):
-    def wrapper(function, rooms: Set[str]):
-        class CommandBot(CommandModule):
-            def __init__(self):
-                super().__init__(rooms, commands)
+class JaykMeta(type):
+    def __new__(metacls, name, bases, namespace, **kwargs):
+        # Add the jaykmodule class if necessary
+        if not any(map(lambda b: isinstance(b, JaykModule), bases)):
+            bases += (JaykModule,)
+        result = type.__new__(metacls, name, bases, dict(namespace))
+        functions = [function for function in namespace.values() if hasattr(function, "_jayk_commands")]
+        result.commands = { }
+        for function in functions:
+            for cmd in function._jayk_commands:
+                result.commands[cmd] = function
+        return result
 
-            def on_command(self, client, cmd, room, sender, message):
-                function(client, cmd, room, sender, message)
 
-        return CommandBot
+def jayk_command(cmd, *cmds):
+    def wrapper(function):
+        function._jayk_commands = [cmd] + list(cmds)
+        return function
     return wrapper
 
 
