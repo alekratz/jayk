@@ -1,4 +1,4 @@
-from ..chatbot import chatbot_factory, JaykMeta
+from ..chatbot import chatbot_factory, JaykMeta, ChatbotState
 from ..common import connect_info_factory
 from .module import HelpModule
 import asyncio
@@ -8,10 +8,13 @@ import sys
 import importlib.util
 
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 def load_module(module_name, path=None):
+    """
+    Loads a Python file as a module.
+    """
     # Step 1: import
     if path is None:
         path = module_name + ".py"
@@ -27,21 +30,27 @@ def load_module(module_name, path=None):
 
 
 def exit_critical(*args, **kwargs):
-    logger.critical(*args, **kwargs)
+    """
+    Emits a critical log message, and exits the program.
+    """
+    log.critical(*args, **kwargs)
     sys.exit(1)
 
 
 def parse_config():
+    """
+    Parses the configuration based on the current files in the directory.
+    """
     import json
     configs = {'bots.json': json.loads}
     try:
         import yaml
         configs['bots.yaml'] = configs['bots.yml'] = yaml.load
     except:
-        logger.debug("could not import YAML; skipping searching for bots.yaml and bots.yml")
+        log.debug("could not import YAML; skipping searching for bots.yaml and bots.yml")
     config_path = None
     for f in configs:
-        logger.debug("looking for %s", f)
+        log.debug("looking for %s", f)
         if path.isfile(f):
             config_path = f
             break
@@ -95,12 +104,12 @@ def jayk():
     except Exception as ex:
         exit_critical("Error while parsing module config: %s", ex)
 
-    logger.debug("Configuration successful")
-    logger.debug("Servers: %s", servers)
-    logger.debug("Modules: %s", module_settings)
+    log.debug("Configuration successful")
+    log.debug("Servers: %s", servers)
+    log.debug("Modules: %s", module_settings)
 
     # Load modules
-    logger.debug("Loading modules")
+    log.debug("Loading modules")
     for server_name in servers:
         help_module = HelpModule(rooms=set())
         server_modules = servers[server_name]['modules'] = [help_module]
@@ -108,7 +117,7 @@ def jayk():
             module = module_settings[module_name]
             if server_name in module['servers'] and module['enabled']:
                 # Load the module
-                logger.info("Loading module %s for server %s", module_name, server_name)
+                log.info("Loading module %s for server %s", module_name, server_name)
                 path = module['path'] if 'path' in module else None
                 loaded_module = load_module(module_name, path)
                 # Construct the bot module
@@ -121,14 +130,22 @@ def jayk():
     # Make connections to servers
     loop = asyncio.get_event_loop()
     for server_name in servers:
-        logger.info("Connecting to %s", server_name)
+        log.info("Connecting to %s", server_name)
+        # Create the module configuration info
         connect_info = servers[server_name]['connect_info']
+        # Create the desired state
+        desired_state = ChatbotState.from_config(config['modules'], server_name)
         modules = servers[server_name]['modules']
-        chatbot = chatbot_factory(connect_info, modules)
+        chatbot = chatbot_factory(connect_info, modules, desired_state)
         coro = loop.create_connection(lambda: chatbot, connect_info.server, connect_info.port)
         loop.run_until_complete(coro)
-    logger.info("Running forever")
-    loop.run_forever()
+    log.info("Running forever")
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        self.info("ctrl-C caught, exiting")
+        loop.stop()
+    loop.close()
 
 
 # TODO

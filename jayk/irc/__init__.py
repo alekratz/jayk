@@ -146,6 +146,8 @@ class ClientProtocol(asyncio.Protocol, LogMixin, metaclass=ABCMeta):
         self.info("connection lost")
         self.transport = None
         # TODO : auto-reconnect module
+        # TODO : auto-reconnect module would require coupling between the protocol and the chatbot? chatbot is not
+        #        aware of its connection to any server.
 
     def _make_message(self, command: str, *params: str):
         """

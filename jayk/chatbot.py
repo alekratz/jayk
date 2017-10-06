@@ -2,9 +2,48 @@ from abc import ABCMeta, abstractmethod
 import asyncio
 import re
 from typing import *
+from copy import deepcopy
 from . import common
 from . import util
 from . import irc
+
+
+class ChatbotState:
+    """
+    Represents a chatbot's state on a server. This is contrasted with the *desired* state, which each server handler
+    derives from its config. This state is per-server.
+
+    The chatbot state holds a list of modules it has loaded, and a list of rooms it has joined.
+    """
+    def __init__(self, modules, rooms):
+        self.modules = modules
+        self.rooms = rooms
+
+    @staticmethod
+    def from_config(config, for_server=None):
+        """
+        Creates a new chatbot state from a configuration file. This is useful for determining the chatbot's "desired"
+        state, versus its current state.
+        :param obj: a dictionary of chatbot modules pointing to their configurations. This is the equivalent of the
+                    "modules" section in the bots.yaml file for the cli configuration.
+        :param for_server: the server that this state concerns. If not specified, it assumes all servers.
+        """
+        modules = set()
+        rooms = set()
+        for module_name in config:
+            module = config[module_name]
+            modules |= {module_name}
+            if 'servers' in module:
+                # All servers
+                if for_server is None:
+                    rooms |= set.union(*[module['servers'][r] for r in module['servers']])
+                # This server
+                else:
+                    rooms |= set(module['servers'][for_server])
+            elif 'rooms' in module:
+                # Assume all rooms
+                rooms |= set(modules['rooms'])
+        return ChatbotState(modules, rooms)
 
 
 class ChatbotModule(util.LogMixin):
@@ -98,10 +137,18 @@ class Chatbot(metaclass=ABCMeta):
     A chatbot abstraction, which provides a number of methods that the chatbot can use to interact with the users in
     some generic chatroom or protocol.
     """
-    def __init__(self, connect_info: common.ConnectInfo, modules: Sequence[ChatbotModule]):
+    def __init__(self, connect_info: common.ConnectInfo, modules: Sequence[ChatbotModule], desired_state: ChatbotState):
         self.connect_info = connect_info
         self.modules = modules
+        self.desired_state = desired_state
+        self.state = ChatbotState(deepcopy(desired_state.modules), set())
         self.rooms = set.union(*[set(m.rooms) for m in modules])
+
+    @abstractmethod
+    def match_desired_state(self):
+        """
+        Makes the chatbot protocol match the current state to the desired state.
+        """
 
     def on_message(self, room: str, sender, message: str):
         for mod in self.modules:
@@ -148,16 +195,46 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
         * server authentication
         * nickname management
     """
-    def __init__(self, connect_info: irc.ConnectInfo, modules: Sequence[ChatbotModule]):
+    def __init__(self, connect_info: irc.ConnectInfo, modules: Sequence[ChatbotModule], desired_state):
         """
         Initializes the IRC chat bot.
         :param connect_info: the connection information to use
         """
-        Chatbot.__init__(self, connect_info, modules)
+        Chatbot.__init__(self, connect_info, modules, desired_state)
         irc.ClientProtocol.__init__(self, connect_info)
         self.connect_info = connect_info
         self.__nick_rotation = iter(self.connect_info.nicks)
         self.__nick = None
+        self.__ready = False
+
+    def match_desired_state(self):
+        # Only match the desired state when we're ready
+        if not self.__ready:
+            self.info("Not ready to sync current state with desired state")
+            return
+        self.info("Syncing current state with desired state")
+        # Sync modules
+        if self.state.modules != self.desired_state.modules:
+            self.debug("Syncing modules")
+            # TODO : Module unloading/reloading
+            self.warning("Current state of modules does not match desired state! This has not yet been implemented.")
+            self.warning("Things may get weird.")
+        else:
+            self.debug("No modules to sync")
+
+        # Sync rooms
+        if self.state.rooms != self.desired_state.rooms:
+            self.debug("Syncing rooms")
+            to_leave = self.state.rooms - self.desired_state.rooms
+            to_join = self.desired_state.rooms - self.state.rooms
+            if to_leave:
+                self.info("Leaving these rooms: %s", to_leave)
+                self._send_command("PART", ",".join(to_leave))
+            if to_join:
+                self.info("Joining these rooms: %s", to_join)
+                self._send_command("JOIN", ",".join(to_join))
+        else:
+            self.debug("No rooms to sync")
 
     def on_connect(self):
         if self.connect_info.server_pass:
@@ -174,8 +251,8 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
         """
         if message.command == 'RPL_MYINFO':
             # MYINFO command handling; we've joined successfully and we're in a room.
-            for ch in self.rooms:
-                self._send_command("JOIN", ch)
+            self.__ready = True
+            self.match_desired_state()
         elif message.command in irc.response.NICK_ERRORS:
             # Invalid NICK errors handled here
             self.__try_next_nick()
@@ -195,18 +272,21 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
             who = None if message.user.nick == self.nick else message.user
             room = message.params[0]
             self.on_join_room(room, who)
+            self.match_desired_state()
         elif message.command == 'KICK':
             # TODO : consolodate differences between "who" arg in on_join_room and on_leave_room
             # Kick handling
             room = message.params[0]
             who = message.params[1]
             self.on_leave_room(room, None if who == self.nick else who)
+            self.match_desired_state()
         elif message.command == 'PART':
             # TODO : consolodate differences between "who" arg in on_join_room and on_leave_room
             # Part handling
             room = message.params[0]
             who = message.user.nick
             self.on_leave_room(room, None if who == self.nick else who)
+            self.match_desired_state()
         elif message.command == 'PRIVMSG':
             # PRIVMSG command handling
             if not message.user or message.user.nick == self.nick:
@@ -252,9 +332,9 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
         return self.__nick
 
 
-def chatbot_factory(connect_info: common.ConnectInfo, modules):
+def chatbot_factory(connect_info: common.ConnectInfo, modules, desired_state):
     if isinstance(connect_info, irc.ConnectInfo):
-        return IRCChatbot(connect_info, modules)
+        return IRCChatbot(connect_info, modules, desired_state)
     else:
         raise ValueError("Unknown ConnectInfo type: {}".format(repr(connect_info)))
 
