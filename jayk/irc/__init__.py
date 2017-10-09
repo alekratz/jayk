@@ -35,7 +35,7 @@ class ConnectInfo(common.ConnectInfo):
     IRC-specific connect info.
     """
     def __init__(self, server: str, nicks: Sequence[str], user: str,
-                 port: Optional[int]=None, server_pass: Optional[str]=None, ssl: Optional[bool]=None):
+                 port: Optional[int]=None, server_pass: Optional[str]=None, ssl: Optional[bool]=None, **_):
         """
         Creates a new ConnectInfo object for IRC connections.
         :param server: IRC the server to connect to.
