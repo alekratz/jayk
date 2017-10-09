@@ -1,5 +1,6 @@
-from ..chatbot import IRCChatbot, ChatbotModule
 from .config import JaykConfig
+from . import util
+from ..chatbot import IRCChatbot, ChatbotModule
 from .. import common
 from .. import irc
 
@@ -14,7 +15,7 @@ class JaykState:
 
     The chatbot state holds a list of modules it has loaded, and a list of rooms it has joined.
     """
-    def __init__(self, modules, rooms):
+    def __init__(self, modules=set(), rooms=set()):
         self.modules = modules
         self.rooms = rooms
 
@@ -36,12 +37,15 @@ class JaykState:
 
 
 class JaykChatbot:
-    def __init__(self, config: JaykConfig, desired_state: JaykState):
-        self.config = config
-        self.desired_state = JaykState.from_config(self.config.modules)
-        self.state = JaykState(deepcopy(self.desired_state.modules), set())
+    __module_cache = {}
 
-    def update_module_config(self, new_config: JaykConfig):
+    def __init__(self, config):
+        self.config = util.AttrDict({'modules': {}})
+        self.desired_state = None
+        self.state = JaykState()
+        self.update_config(config)
+
+    def update_config(self, new_config):
         """
         This method is invoked when the module configuration for this server has changed. This mostly deals with modules
         being enabled and disabled and their parameters updated.
@@ -50,33 +54,76 @@ class JaykChatbot:
         # * Admin user could invoke a module reload?
         # * It's assumed that the current in-memory state goes away, so anything you need should be stored
         #   * For things like wordbot, you need a database to keep its state persistent between disconnects
-        raise NotImplementedError("TODO")
         # Go through all modules, ask them to update
         assert hasattr(self, 'modules'), 'JaykChatbot does not have modules member; are you sure it derives from jayk.chatbot.Chatbot?'
 
+        # Create the new desired state, and get it to match
+        self.config = util.AttrDict(new_config).infect()  # make sure that this is an attrdict because it's how we'll be accessing it
+        self.desired_state = JaykState.from_config(self.config.modules)
+        self.match_desired_state()
+
     def match_desired_state(self):
-        raise NotImplementedError('This should be implemented by the chatbot adapter')
+        """
+        Attempts to match the current state with the desired state.
+        """
+        old_modules = set(self.state.modules)
+        new_modules = set(self.config.modules.keys())
+
+        to_add = new_modules - old_modules
+        to_remove = old_modules - new_modules
+        to_update = new_modules & old_modules
+
+        for remove in to_remove:
+            self.unload_module(name)
+        for add in to_add:
+            self.load_module(add, self.config.modules[add])
+        for update in to_update:
+            self.update_module(update, self.config.modules[update])
+        self.state.modules = set(self.modules.keys())
+
+    def load_module(self, name, config):
+        """
+        Loads a given module, caching it if not already loaded, and returning the cached version if it is.
+        """
+        if not config.enabled:
+            return
+        path = config.path
+        if not path:
+            path = name + '.py'
+        loaded_module = self.get_module(name, path)
+        module_instance = loaded_module(**config.params, config=config, rooms=config.rooms)
+        self.modules[name] = module_instance
+
+    def unload_module(self, name):
+        mod = self.modules.pop(name)
+        mod.on_unload()
+
+    def update_module(self, name, config):
+        mod = self.modules[name]
+        mod.update_config(config)
+
+    def get_module(self, name, path):
+        if path in JaykChatbot.__module_cache:
+            return JaykChatbot.__module_cache[path]
+        else:
+            loaded_module = util.load_module(name, path)
+            self.__module_cache[path] = loaded_module
+            return loaded_module
 
 
 class JaykIRCChatbot(JaykChatbot, IRCChatbot):
-    def __init__(self, config: JaykConfig=None, desired_state: JaykState=None, **kwargs):
-        JaykChatbot.__init__(self, config, desired_state)
+    def __init__(self, config: JaykConfig=None, **kwargs):
         IRCChatbot.__init__(self, **kwargs)
+        JaykChatbot.__init__(self, config)
 
     def match_desired_state(self):
+        # Superclass updates the module state
+        super().match_desired_state()
         # Only match the desired state when we're ready
         if not self.ready:
             self.info("Not ready to sync current state with desired state")
             return
         self.info("Syncing current state with desired state")
-        # Sync modules
-        if self.state.modules != self.desired_state.modules:
-            self.debug("Syncing modules")
-            # TODO(hotload) Module unloading/reloading
-            self.warning("Current state of modules does not match desired state! This has not yet been implemented.")
-            self.warning("Things may get weird.")
-        else:
-            self.debug("No modules to sync")
 
         # Sync rooms
         if self.state.rooms != self.desired_state.rooms:
@@ -124,7 +171,26 @@ class JaykModule(ChatbotModule):
                 self.commands[cmd](self, client, cmd, room, sender, msg)
 
     def update_config(self, module_config):
-        raise NotImplementedError("TODO")
+        """
+        Attempts to update the currently running module's configuration with a new one.
+        """
+        self.rooms = module_config.rooms if 'rooms' in module_config else set()
+        params = module_config.params if 'params' in module_config else util.AttrDict()
+        self.update_params(params)
+
+    def update_params(self, params):
+        """
+        Tells the module to update its params. This does not have to be implemented, although it may cause unexpected
+        behavior if config reloading for this module is available.
+        """
+        if params:
+            self.warning("New params provided to module, but update_params() was not implemented. New or updated params"
+                         "specified in the configuration file will not be available for this module.")
+
+    def on_unload(self):
+        """
+        This event is called whenever the module is unloaded, via a configuration reload.
+        """
 
     # Module metadata methods
     @staticmethod

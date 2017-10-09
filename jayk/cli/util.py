@@ -1,6 +1,7 @@
 import inotify.adapters
 import inotify.constants
 from threading import Thread
+import importlib.util
 
 
 class FileListener(Thread):
@@ -56,3 +57,20 @@ class AttrDict(dict):
 class JaykException(Exception):
     def __init__(self, msg):
         super().__init__(msg)
+
+
+def load_module(module_name, path):
+    """
+    Loads a Python file as a module.
+    """
+    from .module import JaykMeta
+    # Step 1: import
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    # Step 2: find the jayk bot
+    for item in dir(module):
+        cls = getattr(module, item)
+        if isinstance(cls, JaykMeta):
+            return cls
+    raise JaykException("No valid module was found in {}".format(path))

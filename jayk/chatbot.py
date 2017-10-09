@@ -49,7 +49,7 @@ class Chatbot(metaclass=ABCMeta):
     A chatbot abstraction, which provides a number of methods that the chatbot can use to interact with the users in
     some generic chatroom or protocol.
     """
-    def __init__(self, connect_info: common.ConnectInfo, modules: Sequence[ChatbotModule], **kwargs):
+    def __init__(self, connect_info: common.ConnectInfo, modules: Mapping[str, ChatbotModule]={}, **kwargs):
         self.connect_info = connect_info
         self.modules = modules
         # XXX : better way to log this. It's implied that MOST chatbots are going to be LogMixins, but not all of them.
@@ -57,17 +57,17 @@ class Chatbot(metaclass=ABCMeta):
             for k in kwargs: self.warning("Unused parameter when creating chatbot: %s", k)
 
     def on_message(self, room: str, sender, message: str):
-        for mod in self.modules:
+        for mod in self.modules.values():
             if room in mod.rooms:
                 mod.on_message(self, room, sender, message)
 
     def on_join_room(self, room: str, who: Optional[str]):
-        for mod in self.modules:
+        for mod in self.modules.values():
             if room in mod.rooms:
                 mod.on_join_room(self, room, who)
 
     def on_leave_room(self, room: str, who: Optional[str]):
-        for mod in self.modules:
+        for mod in self.modules.values():
             if room in mod.rooms:
                 mod.on_leave_room(self, room, who)
 
@@ -84,7 +84,7 @@ class Chatbot(metaclass=ABCMeta):
 
     @property
     def rooms(self):
-        return self.rooms
+        return set.union(*[set(m.rooms) for m in self.modules.values()])
 
     def run_forever(self, catch_ctrl_c: bool=True):
         """
@@ -113,12 +113,12 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
         * server authentication
         * nickname management
     """
-    def __init__(self, connect_info: irc.ConnectInfo, modules: Sequence[ChatbotModule]):
+    def __init__(self, connect_info: irc.ConnectInfo, **kwargs):
         """
         Initializes the IRC chat bot.
         :param connect_info: the connection information to use
         """
-        Chatbot.__init__(self, connect_info, modules)
+        Chatbot.__init__(self, connect_info, **kwargs)
         irc.ClientProtocol.__init__(self, connect_info)
         self.connect_info = connect_info
         self.__nick_rotation = iter(self.connect_info.nicks)
