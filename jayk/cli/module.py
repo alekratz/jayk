@@ -3,6 +3,7 @@ from . import util
 from ..chatbot import IRCChatbot, ChatbotModule
 from .. import common
 from .. import irc
+from ..util import LogMixin
 
 from typing import *
 from copy import deepcopy
@@ -30,13 +31,14 @@ class JaykState:
         modules = set()
         rooms = set()
         for module_name, module in config.items():
+            if not module.enabled: continue
             modules |= {module_name}
             # Assume all rooms
             rooms |= set(module.rooms)
         return JaykState(modules, rooms)
 
 
-class JaykChatbot:
+class JaykChatbot(LogMixin):
     __module_cache = {}
 
     def __init__(self, config):
@@ -57,15 +59,31 @@ class JaykChatbot:
         # Go through all modules, ask them to update
         assert hasattr(self, 'modules'), 'JaykChatbot does not have modules member; are you sure it derives from jayk.chatbot.Chatbot?'
 
+        # Make sure that no disabled modules are included
+        new_config = util.AttrDict(new_config).infect()  # make sure that this is an attrdict because it's how we'll be accessing it
+        new_config.modules = util.AttrDict({
+                name: mod for name, mod in new_config.modules.items() if mod.enabled
+            })
+
         # Create the new desired state, and get it to match
-        self.config = util.AttrDict(new_config).infect()  # make sure that this is an attrdict because it's how we'll be accessing it
+        self.config = new_config
         self.desired_state = JaykState.from_config(self.config.modules)
         self.match_desired_state()
 
     def match_desired_state(self):
         """
         Attempts to match the current state with the desired state.
+
+        This simply calls match_desired_modules, followed by match_desired_rooms. This should not be overridden.
         """
+        self.match_desired_modules()
+        self.match_desired_rooms()
+
+    def match_desired_modules(self):
+        """
+        Called by `match_desired_state`. This is implemented by the base JaykChatbot class, but it can be overridden.
+        """
+        self.debug("Matching desired modules")
         old_modules = set(self.state.modules)
         new_modules = set(self.config.modules.keys())
 
@@ -74,12 +92,18 @@ class JaykChatbot:
         to_update = new_modules & old_modules
 
         for remove in to_remove:
-            self.unload_module(name)
+            self.unload_module(remove)
         for add in to_add:
             self.load_module(add, self.config.modules[add])
         for update in to_update:
             self.update_module(update, self.config.modules[update])
         self.state.modules = set(self.modules.keys())
+
+    def match_desired_rooms(self):
+        """
+        Called by `match_desired_state`. This should be implemented by the overriding adapter.
+        """
+        self.warning("match_desired_rooms was not implemented; this could cause some weird behavior.")
 
     def load_module(self, name, config):
         """
@@ -87,6 +111,7 @@ class JaykChatbot:
         """
         if not config.enabled:
             return
+        self.debug("Loading module %s", name)
         path = config.path
         if not path:
             path = name + '.py'
@@ -95,17 +120,21 @@ class JaykChatbot:
         self.modules[name] = module_instance
 
     def unload_module(self, name):
+        self.debug("Unloading module %s", name)
         mod = self.modules.pop(name)
         mod.on_unload()
 
     def update_module(self, name, config):
+        self.debug("Updating module %s", name)
         mod = self.modules[name]
         mod.update_config(config)
 
     def get_module(self, name, path):
         if path in JaykChatbot.__module_cache:
+            self.debug("Using cached module for %s", name)
             return JaykChatbot.__module_cache[path]
         else:
+            self.debug("Importing module %s (path: %s)", name, path)
             loaded_module = util.load_module(name, path)
             self.__module_cache[path] = loaded_module
             return loaded_module
@@ -116,28 +145,27 @@ class JaykIRCChatbot(JaykChatbot, IRCChatbot):
         IRCChatbot.__init__(self, **kwargs)
         JaykChatbot.__init__(self, config)
 
-    def match_desired_state(self):
-        # Superclass updates the module state
-        super().match_desired_state()
+    def match_desired_rooms(self):
         # Only match the desired state when we're ready
         if not self.ready:
             self.info("Not ready to sync current state with desired state")
             return
-        self.info("Syncing current state with desired state")
+        self.info("Syncing current rooms with desired rooms")
 
         # Sync rooms
-        if self.state.rooms != self.desired_state.rooms:
-            self.debug("Syncing rooms")
-            to_leave = self.state.rooms - self.desired_state.rooms
-            to_join = self.desired_state.rooms - self.state.rooms
-            if to_leave:
-                self.info("Leaving these rooms: %s", to_leave)
-                self._send_command("PART", ",".join(to_leave))
-            if to_join:
-                self.info("Joining these rooms: %s", to_join)
-                self._send_command("JOIN", ",".join(to_join))
-        else:
-            self.debug("No rooms to sync")
+        old_rooms = set(self.state.rooms)
+        new_rooms = set(self.desired_state.rooms)
+        self.debug("Old rooms: %s", old_rooms)
+        self.debug("New rooms: %s", new_rooms)
+
+        to_leave = old_rooms - new_rooms
+        to_join = new_rooms - old_rooms
+        if to_leave:
+            self.info("Leaving these rooms: %s", to_leave)
+            self._send_command("PART", ",".join(to_leave))
+        if to_join:
+            self.info("Joining these rooms: %s", to_join)
+            self._send_command("JOIN", ",".join(to_join))
 
     def on_ready(self):
         # Once the bot is ready, it should match the desired state
@@ -148,8 +176,18 @@ class JaykIRCChatbot(JaykChatbot, IRCChatbot):
         Overrides the _handle_irc_message method to update the state, if necessary
         """
         super()._handle_irc_message(msg)
-        if msg.command.upper() in ['KICK', 'JOIN', 'PART', 'NICK']:
-            self.match_desired_state()
+        if msg.command.upper() in ['KICK', 'JOIN', 'PART']:
+            self.match_desired_rooms()
+
+    def on_join_room(self, room: str, who: Optional[str]):
+        if who is None:
+            self.state.rooms |= {room}
+        super().on_join_room(room, who)
+
+    def on_leave_room(self, room: str, who: Optional[str]):
+        if who is None:
+            self.state.rooms -= {room}
+        super().on_leave_room(room, who)
 
 
 # TODO Any more adapters here...
@@ -176,16 +214,16 @@ class JaykModule(ChatbotModule):
         """
         self.rooms = module_config.rooms if 'rooms' in module_config else set()
         params = module_config.params if 'params' in module_config else util.AttrDict()
-        self.update_params(params)
+        self.on_update_params(params)
 
-    def update_params(self, params):
+    def on_update_params(self, params):
         """
         Tells the module to update its params. This does not have to be implemented, although it may cause unexpected
         behavior if config reloading for this module is available.
         """
         if params:
-            self.warning("New params provided to module, but update_params() was not implemented. New or updated params"
-                         "specified in the configuration file will not be available for this module.")
+            self.warning("New params provided to module, but on_update_params() was not implemented. New or updated "
+                         "params specified in the configuration file will not be available for this module.")
 
     def on_unload(self):
         """

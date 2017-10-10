@@ -24,3 +24,5 @@ class LogMixin:
     def debug(self, message, *args, **kwargs):
         self.__logger.debug(message, *args, **kwargs)
 
+    def exception(self, message, *args, **kwargs):
+        self.__logger.exception(message, *args, **kwargs)

@@ -7,6 +7,7 @@ import os.path as path
 import asyncio
 import logging
 import sys
+from copy import deepcopy
 
 
 log = logging.getLogger(__name__)
@@ -21,24 +22,46 @@ class JaykDriver(LogMixin):
         super().__init__("{}.JaykDriver".format(__name__))
         self.config = config
         self.bots = {}  # A list of bots, keyed by running servers
+        self.loop = asyncio.get_event_loop()
+        self.__running = False
+        self.__config_listener = FileListener(config.config_path, self.__config_changed)
         for server in self.config.servers:
             self.initialize_bot(server)
 
-    def sync_bot_config(self, server):
-        """
-        Ensures a bot's configuration matches the given server's configuration
-        """
-        if server not in self.config.servers:
-            # Server has been removed; close the connection and remove the bot
-            assert server in self.bots, "Server scheduled to be removed, but was not present in the list of bots"
-            bot = self.bots.pop(server)
+    @property
+    def running(self):
+        return self.__running
+
+    def __config_changed(self):
+        # TODO : Locking
+        new_config = deepcopy(self.config)
+        new_config.reload()
+        self.update_config(new_config)
+
+    def update_config(self, new_config):
+        self.info("Updating server configurations")
+
+        new_servers = set(new_config.servers.keys())
+        old_servers = set(self.config.servers.keys())
+
+        self.config = new_config
+        to_add = new_servers - old_servers
+        to_remove = old_servers - new_servers
+        to_update = old_servers & new_servers
+        for remove in to_remove:
+            self.info("Closing connection to %s", remove)
+            bot = self.bots.pop(remove)
+            # TODO : on_close callbacks, and *then* call the close() function
             bot.close()
-        elif server in self.bots:
-            # Already connected with this server, so update its config
-            bot.update_config(self.config.servers[server])
-        else:
-            # No registered bot with this name; create a new one
-            self.initialize_bot(server)
+        for add in to_add:
+            self.info("Adding bot for %s", add)
+            self.initialize_bot(add)
+            if self.running:
+                self.info("Driver is currently running; initializing bot connection")
+                self.bot_connect(add)
+        for update in to_update:
+            self.info("Updating bot for %s", update)
+            self.bots[update].update_config(self.config.servers[update])
 
     def initialize_bot(self, server: str):
         """
@@ -50,21 +73,35 @@ class JaykDriver(LogMixin):
         connect_info = server_config.connect_info
         self.bots[server] = jayk_chatbot_factory(connect_info, config=server_config)
 
-    def run_forever(self):
-        loop = asyncio.get_event_loop()
-        for server_name, bot in self.bots.items():
-            self.info("Making connection for %s", server_name)
-            try:
-                coro = loop.create_connection(lambda: bot, bot.connect_info.server, bot.connect_info.port)
-                loop.run_until_complete(coro)
-            except Exception as ex:
-                self.error("Could not connect to %s: %s", server_name, ex)
+    def bot_connect(self, server: str):
+        """
+        Initializes a connection with a bot. The driver must be running for this to be allowed.
+        """
+        assert self.running
+        self.info("Making connection for %s", server)
+        bot = self.bots[server]
         try:
-            loop.run_forever()
+            coro = self.loop.create_connection(lambda: bot, bot.connect_info.server, bot.connect_info.port)
+            self.loop.run_until_complete(coro)
+        except Exception as ex:
+            self.error("Could not connect to %s: %s", server, ex)
+
+    def run_forever(self):
+        assert not self.running
+        self.__running = True
+        for server_name in self.bots:
+            self.bot_connect(server_name)
+
+        self.__config_listener.start()
+        try:
+            self.loop.run_forever()
         except KeyboardInterrupt:
             self.info("ctrl-C caught; exiting")
-            loop.stop()
-        loop.close()
+            self.loop.stop()
+            self.info("Stopping config file watcher")
+            self.__config_listener.stop()
+            self.__config_listener.join()
+        self.loop.close()
 
 
 def exit_critical(*args, **kwargs):
@@ -88,11 +125,12 @@ def jayk():
     #except Exception as ex:
     #    exit_critical("Error parsing config file: %s", ex)
 
-    #try:
-    driver = JaykDriver(config)
-    driver.run_forever()
-    #except Exception as ex:
-    #    exit_critical("Unexpected error was caught: %s", ex)
+    try:
+        driver = JaykDriver(config)
+        driver.run_forever()
+    except Exception as ex:
+        logging.exception('Unexpected error')
+        exit_critical("Unexpected error was caught: %s", ex)
 
 
 # TODO

@@ -83,18 +83,18 @@ class JaykConfig:
             configs['bots.yaml'] = configs['bots.yml'] = yaml.load
         except:
             log.debug("could not import YAML; skipping searching for bots.yaml and bots.yml")
-        config_path = None
-        for f in configs:
-            log.debug("looking for %s", f)
-            if path.isfile(f):
-                config_path = f
-                break
-        if config_path == None:
-            raise FileNotFoundError(', '.join(configs.keys()))
-        with open(config_path) as fp:
+        # first time initialization
+        if not self.config_path:
+            for f in configs:
+                log.debug("looking for %s", f)
+                if path.isfile(f):
+                    self.config_path = f
+                    break
+            if self.config_path == None:
+                raise FileNotFoundError(', '.join(configs.keys()))
+        with open(self.config_path) as fp:
             contents = fp.read()
-        self.config_path = config_path
-        return configs[config_path](contents)
+        return configs[self.config_path](contents)
 
     def update(self, config):
         """
