@@ -1,0 +1,38 @@
+servers:
+  - type: irc
+    server: irc.myserver.net
+    user: omnibot
+    nicks:
+      - omnibot
+      - omnibot
+    modules:
+      magic8:
+        # Set this to "yes" or remove this line to enable fortunes
+        enabled: no
+        rooms:
+          - "#idlecity"
+        params:
+          # How many seconds each user must wait before two consecutive fortunes
+          timeout: 300
+          # TODO : specify the fortune list here with a default list in the code(?)
+      wordbot:
+        rooms:
+          - "#idleville"
+        params:
+          # Wordbot will create a database if it doesn't exist
+          leaderboard_database: wordbot.db
+          # The list of words to use. This must exist in the bots/ directory
+          wordlist: words.txt
+          # Number of words to choose per hour
+          words_per_hour: 50
+          # Number of hours each round should last (decimal values should be OK)
+          hours_per_round: 6
+          ignore:
+            - markov
+      linkbot:
+        rooms:
+          - "#idleville"
+          - "#idlecity"
+        params:
+          max_urls: 1
+
