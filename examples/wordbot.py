@@ -3,6 +3,7 @@ import random
 import time
 import asyncio
 import functools
+import itertools
 import operator
 import sqlite3
 from string import punctuation
@@ -123,17 +124,13 @@ class Wordbot(metaclass=JaykMeta):
         """
         self.end_callback.cancel()
         if self.present:
+            score_key = operator.itemgetter(1)
+            score_groups = itertools.groupby(sorted(self.scoreboard.items(), key=score_key, reverse=True), key=score_key)
             client.send_message(room, 'Game over. Here were the scores:')
-            placement = 1
-            last_score = 0
-            scores = sorted(self.scoreboard.items(), key=operator.itemgetter(1), reverse=True)
-            for listing in scores:
-                user, score = listing
-                if score > 0:
-                    client.send_message(room, "{}. {}: {}".format(placement, self.actual_name(user), score))
-                    if score != last_score:
-                        last_score = score
-                        placement += 1
+            for place, (points, group) in enumerate(score_groups, 1):
+                if points > 0:
+                    for name, _ in group:
+                        client.send_message(room, "{}. {}: {}".format(place, self.actual_name(name), points))
             self.update_leaderboard()
             self.new_game(client, room)
         else:
