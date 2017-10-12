@@ -25,7 +25,11 @@ class Wordbot(metaclass=JaykMeta):
         self.words = set()
         self.scoreboard = {}
         self.actualnames = {}
-        self.loop = asyncio.new_event_loop()
+        try:
+            self.loop = asyncio.get_event_loop()
+        except:
+            self.loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self.loop)
         self.end_callback = None
         self.ensure_database()
 
@@ -43,7 +47,7 @@ class Wordbot(metaclass=JaykMeta):
 
     def on_unload(self):
         if self.end_callback is not None:
-            self.end_callback.cancel()
+            self.cancel_endgame()
         self.loop.stop()
 
     def on_update_params(self, params):
@@ -85,11 +89,12 @@ class Wordbot(metaclass=JaykMeta):
         matches = word_set & self.words
         if len(matches) > 0:
             nick = sender.nick
-            if nick not in self.scoreboard:
-                self.scoreboard[nick.lower()] = 0
-            if nick.lower() != nick and nick.lower() not in self.actualnames:
-                self.actualnames[nick.lower()] = nick
-            self.scoreboard[nick.lower()] += len(matches)
+            smallnick = nick.lower()
+            if smallnick not in self.scoreboard:
+                self.scoreboard[smallnick] = 0
+            if smallnick != nick and smallnick not in self.actualnames:
+                self.actualnames[smallnick] = nick
+            self.scoreboard[smallnick] += len(matches)
             for word in matches:
                 client.send_message(room, "{}: Congrats! '{}' is good for 1 point.".format(nick, word))
             self.words -= matches
@@ -102,7 +107,7 @@ class Wordbot(metaclass=JaykMeta):
         words, and starts a new endgame callback to be called N hours from now.
         """
         if self.end_callback is not None:
-            self.end_callback.cancel()
+            self.cancel_endgame()
         self.words = set()
         self.scoreboard = {}
         with open(self.wordlist) as fp:
@@ -116,13 +121,16 @@ class Wordbot(metaclass=JaykMeta):
                 self.words |= set(random.choice(words) for _ in range(count))
         game_end = functools.partial(self.end_game, client, room)
         #self.debug(self.words)
-        self.end_callback = self.loop.call_later(self.hours_per_round * 3600, game_end)
+        seconds = self.hours_per_round * 3600
+        self.debug("Round ends in %s seconds", seconds)
+        self.end_callback = self.loop.call_later(seconds, game_end)
 
     def end_game(self, client, room):
         """
         Runs the end-game logic. If the bot is not present, the end of the game is deferred by one second.
         """
-        self.end_callback.cancel()
+        self.debug("Round over")
+        self.cancel_endgame()
         if self.present:
             score_key = operator.itemgetter(1)
             score_groups = itertools.groupby(sorted(self.scoreboard.items(), key=score_key, reverse=True), key=score_key)
@@ -154,6 +162,10 @@ class Wordbot(metaclass=JaykMeta):
             cur.execute("UPDATE users SET score=? WHERE user=?", (old_score + score, user))
         cur.close()
         db.commit()
+
+    def cancel_endgame(self):
+        self.debug("Cancelling endgame")
+        self.end_callback.cancel()
 
     def ensure_database(self):
         db = sqlite3.connect(self.leaderboard_database)
