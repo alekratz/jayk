@@ -138,7 +138,7 @@ class Wordbot(metaclass=JaykMeta):
             for place, (points, group) in enumerate(score_groups, 1):
                 if points > 0:
                     for name, _ in group:
-                        client.send_message(room, "{}. {}: {}".format(place, self.actual_name(name), points))
+                        client.send_message(room, "{}. {}. {}".format(place, self.actual_name(name), points))
             self.update_leaderboard()
             self.new_game(client, room)
         else:
