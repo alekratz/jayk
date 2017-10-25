@@ -13,6 +13,15 @@ url_re = re.compile("\S+://\S+")
 local_networks = ['127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '169.254.0.0/16']
 
 
+class LinkbotError(Exception):
+    '''
+    Basic exception that will cause linkbot to display an error message to the channel.
+    '''
+    def __init__(self, chan_message):
+        super().__init__(chan_message)
+        self.chan_message = chan_message
+
+
 class HTMLTitleParser(HTMLParser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -53,16 +62,23 @@ class Linkbot(metaclass=JaykMeta):
         global url_re
         matches = url_re.findall(msg)
         urls = filter(self.is_valid_url, matches)
-        titles = filter(bool, map(self.get_title, urls))
-        for title in titles:
-            if len(title) > 512:
-                title = title[0:512]
-            client.send_message(room, title)
+        for url in urls:
+            try:
+                title = self.get_title(url)
+            except LinkbotError as ex:
+                client.send_message(room, "{}: {}".format(sender.nick, ex.chan_message))
+            else:
+                if not title:
+                    continue
+                if len(title) > 512:
+                    title = title[0:512]
+                client.send_message(room, title)
 
     def get_title(self, url):
         """
         Given a URL, attempts to get its title. If the URL does not match the content-type of text/*, None is
         returned.
+        :returns: either a title, or None if the title couldn't be found.
         """
         # Get the request
         try:
@@ -73,7 +89,7 @@ class Linkbot(metaclass=JaykMeta):
             return None
         if r.status_code != 200:
             self.debug("invalid status code: %s", r.status_code)
-            return None
+            raise LinkbotError("{} error".format(r.status_code))
         elif not fnmatch.fnmatch(r.headers['content-type'], 'text/*'):
             self.debug("invalid content-type: %s", r.headers['content-type'])
             return None
