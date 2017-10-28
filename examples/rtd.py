@@ -33,8 +33,8 @@ class RTD(metaclass=JaykMeta):
         if not match:
             return
         g = match.groups()
-        count = int(g[1])
-        sides = int(g[0])
+        count = int(g[0])
+        sides = int(g[1])
         result = roll(sides, count)
         total = sum(result)
         sum_str = ' + '.join(map(str, result))
