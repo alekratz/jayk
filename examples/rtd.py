@@ -13,7 +13,7 @@ def roll(sides, count):
 
 class RTD(metaclass=JaykMeta):
 
-    def __init__(self, max_sides=100, max_dice=20, timeout=5, *args, **kwargs):
+    def __init__(self, max_sides=10**6, max_dice=20, timeout=5, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.max_sides = max_sides
         self.max_dice = max_dice
@@ -35,6 +35,8 @@ class RTD(metaclass=JaykMeta):
         g = match.groups()
         count = int(g[0])
         sides = int(g[1])
+        if count > self.max_dice or sides > self.max_sides:
+            return
         result = roll(sides, count)
         total = sum(result)
         sum_str = ' + '.join(map(str, result))
