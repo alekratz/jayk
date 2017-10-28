@@ -44,15 +44,16 @@ class HTMLTitleParser(HTMLParser):
 
 
 class Linkbot(metaclass=JaykMeta):
-    def __init__(self, blacklist=[], follow_local_urls=False, max_urls=3, **kwargs):
+    def __init__(self, blacklist=[], follow_local_urls=False, max_urls=3, report_errors=True, **kwargs):
         super().__init__(**kwargs)
         # user params
         self.blacklist = blacklist
         self.follow_local_urls = follow_local_urls
+        self.max_urls = max_urls
+        self.report_errors = report_errors
 
     def on_update_params(self, params):
-        updates = ['blacklist',
-                'follow_local_urls']
+        updates = ['blacklist', 'follow_local_urls', 'max_urls', 'report_errors']
         for p in updates:
             if p in params:
                 self.debug("Updating parameter %s", p)
@@ -62,7 +63,10 @@ class Linkbot(metaclass=JaykMeta):
         global url_re
         matches = url_re.findall(msg)
         urls = filter(self.is_valid_url, matches)
+        count = 0
         for url in urls:
+            if count >= self.max_urls:
+                break
             try:
                 title = self.get_title(url)
             except LinkbotError as ex:
@@ -73,6 +77,7 @@ class Linkbot(metaclass=JaykMeta):
                 if len(title) > 512:
                     title = title[0:512]
                 client.send_message(room, title)
+                count += 1
 
     def get_title(self, url):
         """
