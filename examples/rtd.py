@@ -13,7 +13,7 @@ def roll(sides, count):
 
 class RTD(metaclass=JaykMeta):
 
-    def __init__(self, max_sides=100, max_dice=100, timeout=5, *args, **kwargs):
+    def __init__(self, max_sides=100, max_dice=20, timeout=5, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.max_sides = max_sides
         self.max_dice = max_dice
