@@ -5,19 +5,19 @@ import time
 
 # Global bot data
 fortunes = [
-        'Your fortune: Reply hazy, try again',
-        'Your fortune: Excellent Luck',
-        'Your fortune: Good Luck',
-        'Your fortune: Average Luck',
-        'Your fortune: Bad Luck',
-        'Your fortune: Good news will come to you by mail',
-        'Your fortune: ´_ゝ`',
-        'Your fortune: ﾀ━━━━━━(ﾟ∀ﾟ)━━━━━━ !!!!',
-        'Your fortune: You will meet a dark handsome stranger',
-        'Your fortune: Better not tell you now',
-        'Your fortune: Outlook good',
-        'Your fortune: Very Bad Luck',
-        'Your fortune: Godly Luck',
+        'Reply hazy, try again',
+        'Excellent Luck',
+        'Good Luck',
+        'Average Luck',
+        'Bad Luck',
+        'Good news will come to you by mail',
+        '´_ゝ`',
+        'ﾀ━━━━━━(ﾟ∀ﾟ)━━━━━━ !!!!',
+        'You will meet a dark handsome stranger',
+        'Better not tell you now',
+        'Outlook good',
+        'Very Bad Luck',
+        'Godly Luck',
 ]
 
 
@@ -39,7 +39,7 @@ class Magic8(metaclass=JaykMeta):
         user = sender.username
         if user in self.timeouts and self.timeouts[user] > time.time():
             return
-        fortune = "{}: {}".format(sender.nick, random.choice(fortunes))
+        fortune = "{}: Your fortune: {}".format(sender.nick, random.choice(fortunes))
         client.send_message(channel, fortune)
         self.timeouts[user] = time.time() + self.timeout
 
