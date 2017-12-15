@@ -139,9 +139,9 @@ class Convert(metaclass=JaykMeta):
         try:
             # measurements in the correct order that we want them checked
             measures = [Distance, Area, Mass, Weight, Temperature, Time, Volume, Speed, Voltage, Current, Energy, Frequency, Resistance, Capacitance]
-            value = float(match['X'])
-            unit = unit_fixup(match['Xunit'])
-            to_unit = unit_fixup(match['Yunit'])
+            value = float(match.group('X'))
+            unit = unit_fixup(match.group('Xunit'))
+            to_unit = unit_fixup(match.group('Yunit'))
             measure = guess_unit(value, unit, measures=measures)
             # use guess_unit to get the "proper" name of the unit; if it's illegal, it'll throw a ValueError
             to_measure = guess_unit(1, to_unit, measures=measures)
