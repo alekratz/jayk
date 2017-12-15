@@ -111,8 +111,8 @@ class Convert(metaclass=JaykMeta):
         if match is None:
             return
         try:
-            value = float(match['X'])
-            unit = unit_fixup(match['Xunit'])
+            value = float(match.group('X'))
+            unit = unit_fixup(match.group('Xunit'))
             measure = guess_unit(value, unit, measures=[Distance, Speed, Temperature, Weight])
         except ValueError:
             return

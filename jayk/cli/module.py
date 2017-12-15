@@ -267,13 +267,14 @@ class JaykMeta(type):
                 result.commands[cmd] = function
         # Override the on_message method if it's defined in this class to ignore all commands, only if they're defined
         if len(result.commands) > 0 and 'on_message' in namespace:
+            result.__on_message_wrapped = result.on_message
             def on_message_wrapper(self, client, room, sender, msg):
                 parts = msg.split(' ')
                 if len(parts) > 0 and parts[0] in self.commands:
                     cmd = parts[0]
                     self.commands[cmd](self, client, cmd, room, sender, msg)
                 else:
-                    self.on_message(client, room, sender, msg)
+                    self.__on_message_wrapped(client, room, sender, msg)
             result.on_message = on_message_wrapper
         return result
 
