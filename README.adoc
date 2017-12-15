@@ -1,0 +1,163 @@
+= Jayk
+
+A generic python bot framework.
+
+== The name
+
+I was talking in IRC about making this project, and was fishing for name ideas. My buddy Jayk kept giving unhelpful
+answers, so I named it in his honor.
+
+= Usage
+
+Jayk can be used in two different ways:
+ . integrated into a Python program using the basic interfaces
+ . using the command-line program and letting it run in the background
+
+== As a Python program
+
+This is the simplest way to get started. Here is a basic Python program which uses the Jayk framework and creates a
+basic chatbot via IRC.
+
+[source,python]
+----
+import random
+from jayk.chatbot import chatbot_factory, ChatbotModule
+from jayk.irc import ConnectInfo
+
+# Our static list of fortunes to reply with
+fortunes = [
+    "Yes",
+    "It is certain",
+    "No",
+    "Better not tell you now...",
+    "Reply hazy, try again later."
+]
+
+
+# This is the main bot module logic.
+class Magic8(ChatbotModule):
+    def __init__(self, **kwargs):
+        # Normally you don't need a constructor for a bot this simple.
+        # However, I've added it to emphasize the point that you need to pass
+        # all non-consumed kwargs to the superclass.
+        super().__init__(**kwargs)
+
+    def on_message(self, client, room, sender, message):
+        # We get a heap of information for every message received:
+        # * The client that sent it,
+        # * The room it was in,
+        # * The sender of the message,
+        # * The message itself.
+        # Note that if the sender is the bot itself, it will not trigger on_message().
+        # Thus, you can safely assume you will not receive self-messages.  
+        parts = message.split()
+        if not parts:
+            return
+        command = parts[0]
+        # This is the command which triggers the magic 8 ball
+        if command == '!8ball':
+            fortune = random.choice(fortunes)
+            # Send the message using our client.
+            client.send_message(room, "{}: {}".format(sender.nick, fortune))
+            # TODO : sender.nick is IRC-specific. We need a way to discern between the different user parts for any
+            #        arbitrary chat system (e.g. Slack, Jabber)
+
+
+# Tell the bot where to connect
+connect_info = ConnectInfo(
+    server="irc.freenode.net",
+    nicks=["mybot", "mybot_"],
+    user="mybot"])
+
+# Which rooms to join once we're in there
+rooms = ["#idlecity"]
+
+# Set up the modules
+modules = [Magic8(rooms=rooms)]
+
+# Make the bot determined by the connect info, let it connect and run forever
+irc_bot = chatbot_factory(connect_info, modules)
+irc_bot.run_forever()
+----
+
+In summary, the above program does the following:
+ * Imports the necessary framework components
+ * Creates a new `Magic8` module that gets used by the chatbot driver
+ * Defines the connection info for the IRC server
+ * Constructs the `Magic8` module with the defined rooms
+ * Lets the bot connect and loops forever.
+
+== Via the command line program
+
+The command line program provides a common configuration file scheme and module system to use for your bots. A few
+notable features include:
+
+ * Modularized, reusable code, not tied to the server it operates on
+ * Multiple configuration formats supported (JSON, YAML for now)
+ * Automatic configuration reloading
+ * Command routing for modules
+
+The CLI runs in the current directory, looking for either `bots.json`, `bots.yaml`, or `bots.yml`. This configuration
+tells the CLI bot which servers to connect to. Below is an example YAML configuration. It sets up a bot to connect to
+freenode, and join two separate rooms with two separate modules.
+
+[source,yaml]
+----
+servers:
+  - type: irc
+    server: chat.freenode.net
+    user: jayk_bot
+    # Jayk will try to use all nicks specified from top to bottom.
+    nicks:
+      - jayk_bot
+      - jayk_bot_
+    # These are the modules that are used by the server.
+    modules:
+      magic8:
+        rooms:
+          - "#help"
+        # Some bots have params and configuration
+        params:
+          timeout: 300
+        # You may want to temporarily disable this bot. Configuration files are loaded dynamically, so you can enable
+        # or disable bots at will.
+        enabled: no
+      rtd:
+        # Some bots may have no parameters or configuration.
+        rooms:
+          - "#idleville"
+----
+
+There are a few example bots in the `examples` directory. Here is what the same "magic 8 ball" bot looks like as a
+CLI bot:
+
+[source,python]
+----
+import random
+from jayk.cli.module import JaykMeta, jayk_command
+
+
+# Our static list of fortunes to reply with
+fortunes = [
+    "Yes",
+    "It is certain",
+    "No",
+    "Better not tell you now...",
+    "Reply hazy, try again later."
+]
+
+
+class Magic8(metaclass=JaykMeta):
+    # Omitting the constructor this time - it would look exactly like the one
+    # in the example above.
+
+    @jayk_command("!8ball", "!fortune")
+    def magic8(self, client, cmd, channel, sender, message):
+        # Note the new parameter - cmd. This is the command that was specified that caused this method to be called.
+        fortune = "{}: {}".format(sender.nick, random.choice(fortune))
+        client.send_message(channel, fortune)
+----
+
+As you can see, it's significantly shorter than the boilerplate example. However, it comes with less fine-grained
+control. It all depends on what your use case is.
+
