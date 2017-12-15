@@ -1,7 +1,46 @@
 from measurement.utils import guess as guess_unit
 from measurement.measures import *
+from measurement.base import MeasureBase
 from jayk.cli.module import JaykMeta, jayk_command
 import re
+
+# Byte measurements
+class Storage(MeasureBase):
+    STANDARD_UNIT = 'byte'
+    UNITS = {
+        'bit': 1,
+        'kbit': 1024,
+        'mbit': 1024 ** 2,
+        'gbit': 1024 ** 3,
+        'tbit': 1024 ** 4,
+        'pbit': 1024 ** 5,
+        'byte': 8,
+        'kb': 8 * 1024,
+        'mb': 8 * 1024 ** 2,
+        'gb': 8 * 1024 ** 3,
+        'tb': 8 * 1024 ** 4,
+        'pb': 8 * 1024 ** 5,
+        'eb': 8 * 1024 ** 6,
+        'zb': 8 * 1024 ** 7,
+        'yb': 8 * 1024 ** 8,
+    }
+    ALIAS = {
+        'b': 'byte',
+        'kilobit': 'kbit',
+        'megabit': 'mbit',
+        'gigabit': 'gbit',
+        'terabit': 'tbit',
+        'petabit': 'pbit',
+        'kilobyte': 'kb',
+        'megabyte': 'mb',
+        'gigabyte': 'gb',
+        'terabyte': 'tb',
+        'petabyte': 'pb',
+        'exabyte':  'eb',
+        'zetabyte': 'zb',
+        'yottabyte':'yb',
+    }
+
 
 # Regular expression used for active conversion queries
 CONVERT_RE = re.compile(r'(?P<X>[+-]?[0-9]+(\.[0-9]+)?) ?'
@@ -138,7 +177,7 @@ class Convert(metaclass=JaykMeta):
             return
         try:
             # measurements in the correct order that we want them checked
-            measures = [Distance, Area, Mass, Weight, Temperature, Time, Volume, Speed, Voltage, Current, Energy, Frequency, Resistance, Capacitance]
+            measures = [Distance, Area, Mass, Weight, Temperature, Time, Volume, Speed, Storage, Voltage, Current, Energy, Frequency, Resistance, Capacitance]
             value = float(match.group('X'))
             unit = unit_fixup(match.group('Xunit'))
             to_unit = unit_fixup(match.group('Yunit'))
@@ -154,7 +193,7 @@ class Convert(metaclass=JaykMeta):
             client.send_message(room, '{}: {}'.format(nick, ex))
         except Exception as ex:
             nick = sender.nick
-            client.send_message(room, '{}: {}. Are you sure your units are compatible?'.format(nick, ex))
+            client.send_message(room, '{}: {}. Are you sure your units are compatible?'.format(nick, ex) + str(type(ex)))
 
     @staticmethod
     def author(): return 'intercal'
