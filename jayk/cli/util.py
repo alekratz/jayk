@@ -27,7 +27,7 @@ class FileProcess(mp.Process):
                     if 'IN_IGNORED' in type_names:
                         # XXX : give it a chance to make a new file
                         # No real workaround beyond waiting for the disk to catch up
-                        time.sleep(0.5)
+                        time.sleep(1.0)
                         self.notify.add_watch(self.listen_path)
                     self.queue.put(event)
             except Exception as ex:
@@ -52,7 +52,7 @@ class FileListener(Thread, LogMixin):
         assert self.queue is not None, "File listener has already completed; create a new one"
         self.process.start()
         self.running = True
-        ignore = {'IN_CLOSE_NOWRITE', 'IN_MOVED_TO', 'IN_OPEN', 'IN_DELETE_SELF', 'IN_MOVE_SELF'}
+        ignore = {'IN_CLOSE_NOWRITE', 'IN_MOVED_TO', 'IN_OPEN', 'IN_DELETE_SELF', 'IN_MOVE_SELF', 'IN_ACCESS'}
         while self.running:
             try:
                 event = self.queue.get(True, 0.1)
