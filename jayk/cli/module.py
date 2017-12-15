@@ -259,11 +259,22 @@ class JaykMeta(type):
         if not any(map(lambda b: isinstance(b, JaykModule), bases)):
             bases += (JaykModule,)
         result = type.__new__(metacls, name, bases, dict(namespace))
+        # Add command functions if necessary
         functions = [function for function in namespace.values() if hasattr(function, "_jayk_commands")]
         result.commands = { }
         for function in functions:
             for cmd in function._jayk_commands:
                 result.commands[cmd] = function
+        # Override the on_message method if it's defined in this class to ignore all commands, only if they're defined
+        if len(result.commands) > 0 and 'on_message' in namespace:
+            def on_message_wrapper(self, client, room, sender, msg):
+                parts = msg.split(' ')
+                if len(parts) > 0 and parts[0] in self.commands:
+                    cmd = parts[0]
+                    self.commands[cmd](self, client, cmd, room, sender, msg)
+                else:
+                    self.on_message(client, room, sender, msg)
+            result.on_message = on_message_wrapper
         return result
 
 
