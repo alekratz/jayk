@@ -51,7 +51,22 @@ class HashBot(metaclass=JaykMeta):
 
     @jayk_command("!hash")
     def do_hash(self, client, cmd, room, sender, msg):
-        client.send_message(room, '{}: TODO :^)'.format(sender.nick))
+        parts = msg.split(None, 2)[1:]
+        if len(parts) == 0:
+            return
+        elif len(parts) == 1:
+            parts += ['']
+        algo, string = parts
+        h = make_hash(algo, string)
+        if h is None:
+            client.send_message(room, '{}: hash algorithm not available'.format(sender.nick))
+        else:
+            client.send_message(room, '{}: {}'.format(sender.nick, h))
+
+    @jayk_command("!hashes")
+    def hashes(self, client, cmd, room, sender, msg):
+        algos = set(map(str.lower(), hashlib.algorithms_available))
+        client.send_message(room, 'Available hash algorithms: {}'.format(' '.join(algos))
 
     @staticmethod
     def author(): return 'intercal'
