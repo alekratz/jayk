@@ -65,7 +65,7 @@ class HashBot(metaclass=JaykMeta):
 
     @jayk_command("!hashes")
     def hashes(self, client, cmd, room, sender, msg):
-        algos = set(map(str.lower(), hashlib.algorithms_available))
+        algos = set(map(str.lower, hashlib.algorithms_available))
         client.send_message(room, 'Available hash algorithms: {}'.format(' '.join(algos)))
 
     @staticmethod
