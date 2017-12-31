@@ -162,7 +162,7 @@ class Convert(metaclass=JaykMeta):
             try:
                 to_value = getattr(measure, to_unit)
                 to_measure = guess_unit(to_value, to_unit, measures=[Distance, Speed, Temperature, Weight])
-                client.send_message(room, '{:.2f} {} = {:.2f} {}'.format(measure.value, measure.unit, to_measure.value, to_measure.unit))
+                client.send_message(room, '{:.2f} {} ≈ {:.2f} {}'.format(measure.value, measure.unit, to_measure.value, to_measure.unit))
             except Exception as ex:
                 self.error("Could not convert %s to %s: %s", measure, to_unit, ex)
                 return
@@ -187,7 +187,7 @@ class Convert(metaclass=JaykMeta):
             self.debug("Best guess for %s: %s", to_unit, to_measure.unit)
             to_unit = to_measure.unit
             to_value = getattr(measure, to_unit)
-            client.send_message(room, '{:.2f} {} = {:.2f} {}'.format(value, unit, to_value, to_unit))
+            client.send_message(room, '{:.2f} {} ≈ {:.2f} {}'.format(value, unit, to_value, to_unit))
         except ValueError as ex:
             nick = sender.nick
             client.send_message(room, '{}: {}'.format(nick, ex))
