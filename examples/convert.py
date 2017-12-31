@@ -162,7 +162,7 @@ class Convert(metaclass=JaykMeta):
             try:
                 to_value = getattr(measure, to_unit)
                 to_measure = guess_unit(to_value, to_unit, measures=[Distance, Speed, Temperature, Weight])
-                client.send_message(room, '{:.2f} {} = {:.2f} {}'.format(measure.value, measure.unit, to_measure.value, to_measure.unit))
+                client.send_message(room, '{:.2f} {} ≈ {:.2f} {}'.format(measure.value, measure.unit, to_measure.value, to_measure.unit))
             except Exception as ex:
                 self.error("Could not convert %s to %s: %s", measure, to_unit, ex)
                 return
