@@ -187,7 +187,7 @@ class Convert(metaclass=JaykMeta):
             self.debug("Best guess for %s: %s", to_unit, to_measure.unit)
             to_unit = to_measure.unit
             to_value = getattr(measure, to_unit)
-            client.send_message(room, '{:.2f} {} = {:.2f} {}'.format(value, unit, to_value, to_unit))
+            client.send_message(room, '{:.2f} {} ≈ {:.2f} {}'.format(value, unit, to_value, to_unit))
         except ValueError as ex:
             nick = sender.nick
             client.send_message(room, '{}: {}'.format(nick, ex))
