@@ -4,6 +4,7 @@
 .coverage
 .idea/
 .vscode/
+.eggs/
 jayk.egg-info/
 build/
 dist/
