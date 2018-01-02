@@ -1,13 +1,17 @@
-from ..util import LogMixin
-from .module import *
-from .config import *
-from .util import *
+"""
+Base CLI entry point and basic driver definitions.
+"""
 
 import os.path as path
 import asyncio
 import logging
 import sys
 from copy import deepcopy
+
+from ..util import LogMixin
+from .module import HelpModule, jayk_chatbot_factory
+from .config import *
+from .util import FileListener
 
 
 log = logging.getLogger(__name__)
@@ -19,6 +23,10 @@ class JaykDriver(LogMixin):
     This takes a loaded configuration, and spins up a set of bots corrseponding to it.
     """
     def __init__(self, config: JaykConfig):
+        """
+        Creates a new driver with the specified configuration.
+        :param config: the configuration to create this driver from.
+        """
         super().__init__("{}.JaykDriver".format(__name__))
         self.config = config
         self.bots = {}  # A list of bots, keyed by running servers
@@ -30,15 +38,24 @@ class JaykDriver(LogMixin):
 
     @property
     def running(self):
+        """
+        Gets whether the driver is running or not.
+        """
         return self.__running
 
     def __config_changed(self):
+        """
+        Event that is fired whenever the configuration is changed for this driver.
+        """
         # TODO : Locking
         new_config = deepcopy(self.config)
         new_config.reload()
         self.update_config(new_config)
 
     def update_config(self, new_config):
+        """
+        Program logic for updating the configuration of this server.
+        """
         self.info("Updating server configurations")
 
         new_servers = set(new_config.servers.keys())
@@ -68,7 +85,8 @@ class JaykDriver(LogMixin):
         Sets up a bot to connect to a server, short of actually connecting.
         """
         assert server not in self.bots
-        help_module = HelpModule(rooms=set())
+        # TODO : add help module with customizable !help command
+        #help_module = HelpModule(rooms=set())
         server_config = self.config.servers[server]
         connect_info = server_config.connect_info
         self.bots[server] = jayk_chatbot_factory(connect_info, config=server_config)
@@ -81,12 +99,16 @@ class JaykDriver(LogMixin):
         self.info("Making connection for %s", server)
         bot = self.bots[server]
         try:
-            coro = self.loop.create_connection(lambda: bot, bot.connect_info.server, bot.connect_info.port)
+            coro = self.loop.create_connection(lambda: bot, bot.connect_info.server,
+                                               bot.connect_info.port)
             self.loop.run_until_complete(coro)
         except Exception as ex:
             self.error("Could not connect to %s: %s", server, ex)
 
     def run_forever(self):
+        """
+        Starts the bot driver running... forever.
+        """
         assert not self.running
         self.__running = True
         for server_name in self.bots:
@@ -114,16 +136,20 @@ def exit_critical(*args, **kwargs):
 
 
 def jayk():
+    """
+    Main program entry point. Invoked by running `jayk` on the command line.
+    """
     logging.basicConfig(level=logging.DEBUG)
     # Parse the configuration
     try:
         config = JaykConfig()
     except FileNotFoundError as ex:
-        exit_critical("Could not find any of the expected config files in the current directory: %s", ex)
+        exit_critical("Could not find any of the expected config "
+                      "files in the current directory: %s", ex)
     except JaykConfigError as ex:
         exit_critical("%s", ex)
-    #except Exception as ex:
-    #    exit_critical("Error parsing config file: %s", ex)
+    except Exception as ex:
+        exit_critical("Unexpected error parsing config file: %s", ex)
 
     try:
         driver = JaykDriver(config)
@@ -135,7 +161,8 @@ def jayk():
 
 # TODO
 # * code hot loading
-# * auto config loading
 # * nickserv handling
 # * ssl support
 # * new CLI class that handles things
+# * better async code now that I know how to do it
+# * async file watching (instead of current hackneyed multi-process watching)

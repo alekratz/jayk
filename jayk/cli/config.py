@@ -1,7 +1,13 @@
-from .util import AttrDict
-from ..common import connect_info_factory
+"""
+CLI-specific configuration.
+"""
+
 import os.path as path
 import logging
+import json
+import hashlib
+from .util import AttrDict
+from ..common import connect_info_factory
 
 
 __all__ = ["JaykConfigError", "JaykConfig"]
@@ -15,11 +21,11 @@ def module_defaults(module_config):
     Applies default settings to modules if they aren't present in the given configuration
     """
     defaults = {
-            'rooms': [],
-            'params': {},
-            'enabled': True,
-            'path': None,
-            }
+        'rooms': [],
+        'params': {},
+        'enabled': True,
+        'path': None,
+    }
     for k, v in defaults.items():
         if k not in module_config:
             module_config[k] = v
@@ -27,8 +33,7 @@ def module_defaults(module_config):
 
 
 class JaykConfigError(Exception):
-    def __init__(self, msg):
-        super().__init__(msg)
+    """A configuration continuity error."""
 
 
 class JaykConfig:
@@ -37,7 +42,8 @@ class JaykConfig:
     """
     def __init__(self):
         """
-        Figures out which configuration file we want to load, gets its contents, and loads it in to memory.
+        Figures out which configuration file we want to load, gets its contents, and loads it in to
+        memory.
         """
         # Set up the initial class members
         self.config_path = None         # configuration path
@@ -52,7 +58,6 @@ class JaykConfig:
         """
         Helper function that makes a hash of the given configuration.
         """
-        import json, hashlib
         config_str = json.dumps(config)
         h = hashlib.sha256(config_str.encode('ascii'))
         return h.hexdigest()
@@ -76,12 +81,11 @@ class JaykConfig:
         """
         Searches around for a config file that we can use in the current directory.
         """
-        import json
         configs = {'bots.json': json.loads}
         try:
             import yaml
             configs['bots.yaml'] = configs['bots.yml'] = yaml.load
-        except:
+        except ImportError:
             log.debug("could not import YAML; skipping searching for bots.yaml and bots.yml")
         # first time initialization
         if not self.config_path:
@@ -90,7 +94,7 @@ class JaykConfig:
                 if path.isfile(f):
                     self.config_path = f
                     break
-            if self.config_path == None:
+            if self.config_path is None:
                 raise FileNotFoundError(', '.join(configs.keys()))
         with open(self.config_path) as fp:
             contents = fp.read()
@@ -98,7 +102,8 @@ class JaykConfig:
 
     def update(self, config):
         """
-        Makes sense of the passed configuration object, and ensures that the configuration is both consistent and sane.
+        Makes sense of the passed configuration object, and ensures that the configuration is both
+        consistent and sane.
         """
         # Get server connect info
         self.servers.clear()
@@ -106,6 +111,6 @@ class JaykConfig:
             server_type = server.type
             self.servers[server.server] = AttrDict({
                 'connect_info': connect_info_factory(server_type, **server),
-                'modules': {n: module_defaults(m) for n, m in server.modules.items()} if 'modules' in server else {},
-                }).infect()
-
+                'modules': {n: module_defaults(m) for n, m in server.modules.items()} \
+                           if 'modules' in server else {},
+            }).infect()
