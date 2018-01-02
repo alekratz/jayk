@@ -1,7 +1,11 @@
+"""
+Base chatbot structures and implementations. This module is the convergence of chatbots and
+transport protocols that those chatbots exist on.
+"""
+
 from abc import ABCMeta, abstractmethod
 import asyncio
-import re
-from typing import *
+from typing import Set, Optional, Mapping, Sequence
 from . import common
 from . import util
 from . import irc
@@ -19,12 +23,14 @@ class ChatbotModule(util.LogMixin):
         super().__init__(__name__)
         self.rooms = rooms
         if kwargs:
-            for k in kwargs: self.warning("Unused parameter when creating chatbot module: %s", k)
+            for k in kwargs:
+                self.warning("Unused parameter when creating chatbot module: %s", k)
 
     def on_message(self, client: 'Chatbot', room: str, sender, message: str):
         """
         Called when a channel message is received.
-        :param room: the room the message was sent to. If this is a private message, this is set to None.
+        :param room: the room the message was sent to. If this is a private message, this is set to
+                     None.
         :param sender: the name of the sender of this message. Self-messages are ignored.
         :param message: the message content.
         """
@@ -33,46 +39,72 @@ class ChatbotModule(util.LogMixin):
         """
         Called when a user enters a room.
         :param room: the room that was joined.
-        :param who: the nickname of the person who joined the room. If None, then it refers to the bot.
+        :param who: the nickname of the person who joined the room. If None, then it refers to the
+                    bot.
         """
 
     def on_leave_room(self, client: 'Chatbot', room: str, who: Optional[str]):
         """
         Called when a user leaves the room.
         :param room: the room that was left.
-        :param who: the nickname of the person who joined the room. If None, then it refers to the bot.
+        :param who: the nickname of the person who joined the room. If None, then it refers to the
+                    bot.
         """
 
 
 class Chatbot(metaclass=ABCMeta):
     """
-    A chatbot abstraction, which provides a number of methods that the chatbot can use to interact with the users in
-    some generic chatroom or protocol.
+    A chatbot abstraction, which provides a number of methods that the chatbot can use to interact
+    with the users in some generic chatroom or protocol.
     """
-    def __init__(self, connect_info: common.ConnectInfo, modules: Mapping[str, ChatbotModule]={}, **kwargs):
+    def __init__(self, connect_info: common.ConnectInfo,
+                 modules: Mapping[str, ChatbotModule] = None, **kwargs):
+        if modules is None:
+            modules = {}
         self.connect_info = connect_info
         self.modules = modules
-        # XXX : better way to log this. It's implied that MOST chatbots are going to be LogMixins, but not all of them.
-        if kwargs and isinstance(self, LogMixin):
-            for k in kwargs: self.warning("Unused parameter when creating chatbot: %s", k)
+        # XXX : better way to log this. It's implied that MOST chatbots are going to be LogMixins,
+        #       but not all of them.
+        if kwargs and isinstance(self, util.LogMixin):
+            for k in kwargs:
+                self.warning("Unused parameter when creating chatbot: %s", k)
 
     def on_message(self, room: str, sender, message: str):
+        """
+        Method that gets called whenever this chatbot receives a message from the server.
+
+        :param room: the room that this message was sent to.
+        :param sender: the sender that this message was sent from.
+        :param message: the body of the message that was sent.
+        """
         for mod in self.modules.values():
             if room in mod.rooms:
                 mod.on_message(self, room, sender, message)
 
     def on_join_room(self, room: str, who: Optional[str]):
+        """
+        Method that gets called when a user joins a room in which this chatbot resides.
+
+        :param room: the room that was joined.
+        :param who: the user who joined the room. If None, then it was us who joined the room.
+        """
         for mod in self.modules.values():
             if room in mod.rooms:
                 mod.on_join_room(self, room, who)
 
     def on_leave_room(self, room: str, who: Optional[str]):
+        """
+        Method that gets called when a user leaves a room in which this chatbot resides.
+
+        :param room: the room that was left.
+        :param who: the user who left the room. If None, then it was us who left the room.
+        """
         for mod in self.modules.values():
             if room in mod.rooms:
                 mod.on_leave_room(self, room, who)
 
     @abstractmethod
-    def send_message(self, room: str, msg: str):
+    def send_message(self, target: str, msg: str):
         """
         Sends a message to a room on the server. This is server-dependent.
         """
@@ -84,21 +116,26 @@ class Chatbot(metaclass=ABCMeta):
 
     @property
     def rooms(self):
+        """
+        The list of rooms that this chatbot is supposed to be in.
+        """
         return set.union(*[set(m.rooms) for m in self.modules.values()])
 
-    def run_forever(self, catch_ctrl_c: bool=True):
+    def run_forever(self, catch_ctrl_c: bool = True):
         """
         Runs this chatbot connection forever, asynchronously.
         """
-        # XXX : this assumes that the chatbot is also a Protocol object. This should be fixed in the future. Maybe
-        #       attach it to a protocol wrapper and derive from that? feels like overengineering...
+        # XXX : this assumes that the chatbot is also a Protocol object. This should be fixed in the
+        #       future. Maybe attach it to a protocol wrapper and derive from that? feels like
+        #       overengineering...
         loop = asyncio.get_event_loop()
-        coro = loop.create_connection(lambda: self, self.connect_info.server, self.connect_info.port)
+        coro = loop.create_connection(lambda: self, self.connect_info.server,
+                                      self.connect_info.port)
         loop.run_until_complete(coro)
         if catch_ctrl_c:
             try:
                 loop.run_forever()
-            except KeyboardInterrupt as e:
+            except KeyboardInterrupt:
                 self.info("ctrl-C caught, exiting")
                 loop.stop()
         else:
@@ -126,6 +163,10 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
         self.__ready = False
 
     def on_connect(self):
+        """
+        This method gets called when the IRC chatbot has connected to the server. If server-level
+        authentication is required, it is passed to the server here.
+        """
         if self.connect_info.server_pass:
             self._send_command("PASS", self.connect_info.server_pass)
         self._send_command("USER", self.connect_info.user, '0', '*', 'Chatbot')
@@ -133,16 +174,32 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
 
     def on_ready(self):
         """
-        Event that is called when the IRC connection is ready to receive commands and messages. This is useful for
-        setting up any necessary state for the given bot.
+        Event that is called when the IRC connection is ready to receive commands and messages. This
+        is useful for setting up any necessary state for the given bot.
         """
 
     def send_message(self, target: str, msg: str):
+        """
+        Sends a PRIVMSG to the IRC server.
+
+        :param target: the target recipient of this message. May either be a channel or another
+                       user's nickname (for private messages).
+        :param msg: the content of the message to be sent.
+        """
         self._send_command('PRIVMSG', target, ":{}".format(msg))
 
     def _handle_irc_message(self, message: irc.Message):
         """
-        Handles an IRC message.
+        Callback for when an IRC message is received by this bot. Messages handled by this bot
+        include:
+            * RPL_* messages for user login replies
+            * Nickname errors, so we can try the next nickname
+            * IRC server pings
+            * JOIN messages
+            * PART messages
+            * KICK messages
+            * NICK messages
+            * PRIVMSG commands
         """
         if message.command == 'RPL_MYINFO':
             # MYINFO command handling; we've joined successfully and we're in a room.
@@ -153,9 +210,9 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
             self.__try_next_nick()
         elif message.command == 'PING':
             # PING/PONG command handling
-            if len(message.params) == 0:
+            if not message.params:
                 # NOTE: throw an error?
-                self.error('invalid IRC PING message received: %s', msg)
+                self.error('invalid IRC PING message received: %s', message)
                 return
             msg = message.params[0]
             if msg[0] != ':':
@@ -192,8 +249,9 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
 
     def connection_made(self, transport):
         """
-        Hooks into the IRC client protocol's connection_made and calls some events after the superclass's method is
-        called.
+        Hooks into the IRC client protocol's connection_made and calls some events after the
+        superclass's method is called.
+
         :param transport: the transport that is passed along to the superclass
         """
         super().connection_made(transport)
@@ -201,9 +259,11 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
 
     def data_received(self, data):
         """
-        Hooks into the IRC client protocol's data_received and calls some events after the superclass's method is
-        called.
-        :param data: the data received. This is passed on to _handle_irc_message, and then on_message.
+        Hooks into the IRC client protocol's data_received and calls some events after the
+        superclass's method is called.
+
+        :param data: the data received. This is passed on to _handle_irc_message, and then
+                     on_message.
         """
         super().data_received(data)
         lines = data.decode().split("\r\n")
@@ -216,18 +276,29 @@ class IRCChatbot(Chatbot, irc.ClientProtocol):
                 self._handle_irc_message(message)
 
     def __try_next_nick(self):
+        """
+        Attempts to set our nickname to the next nickname in the list. If there are none left,
+        NoMoreNickError is raised.
+        """
         try:
             self.__nick = next(self.__nick_rotation)
             self._send_command("NICK", self.__nick)
         except StopIteration:
-            raise NoMoreNicksError(self.connect_info)
+            raise common.NoMoreNicksError(self.connect_info)
 
     @property
     def nick(self):
+        """
+        Our nickname.
+        """
         return self.__nick
 
     @property
     def ready(self):
+        """
+        Whether we're ready to start sending commands to the server or not. This flag gets set only
+        after we have received RPL_MYINFO from the server.
+        """
         return self.__ready
 
 
@@ -236,7 +307,6 @@ def chatbot_factory(connect_info: common.ConnectInfo, modules: Sequence[ChatbotM
     Creates a chatbot based on the type of connect info passed.
     """
     if isinstance(connect_info, irc.ConnectInfo):
-        return IRCChatbot(connect_info, modules, desired_state)
+        return IRCChatbot(connect_info, modules=modules)
     else:
         raise ValueError("Unknown ConnectInfo type: {}".format(repr(connect_info)))
-
