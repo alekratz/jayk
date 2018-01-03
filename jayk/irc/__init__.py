@@ -93,9 +93,12 @@ class Message(object):
         :param params: the parameters to pass.
         """
         self.prefix = prefix
-        try:
-            self.user = User.parse(self.prefix)
-        except ValueError:
+        if prefix is not None:
+            try:
+                self.user = User.parse(self.prefix)
+            except ValueError:
+                self.user = None
+        else:
             self.user = None
         self.command = command
         self.params = params
