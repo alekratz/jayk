@@ -7,11 +7,33 @@ A generic python bot framework.
 I was talking in IRC about making this project, and was fishing for name ideas. My buddy Jayk kept giving unhelpful
 answers, so I named it in his honor.
 
-= Usage
+== Installation
+
+Jayk requires Python 3.5. I have not tested it under any other environment, so it may break. Sorry about that.
+
+I recommend using a virtualenv ([see how to set one up here](http://docs.python-guide.org/en/latest/dev/virtualenvs/))
+to run code, but it's entirely up to you.
+
+ . Install requirements with pip.
+
+    pip install -r requirements.txt
+    # If you're wanting to use optional features (e.g. YAML configuration), install from optional-requirements.txt as well.
+    pip install -r optional-requirements.txt
+
+ . Install the library with `setup.py`.
+
+    python3 setup.py install
+    # If you're wanting to hack on the library itself (not the bots, those are separate) then you may want to use the
+    # 'develop' option instead. This installs symlinks instead of copying files over, so you don't have to reinstall your
+    # package every time you make a change.
+    # python3 setup.py develop
+
+== Usage
 
 Jayk can be used in two different ways:
- . integrated into a Python program using the basic interfaces
+
  . using the command-line program and letting it run in the background
+ . integrated into a Python program using the basic interfaces
 
 == As a Python program
 
@@ -81,6 +103,7 @@ irc_bot.run_forever()
 ----
 
 In summary, the above program does the following:
+
  * Imports the necessary framework components
  * Creates a new `Magic8` module that gets used by the chatbot driver
  * Defines the connection info for the IRC server
