@@ -1,3 +1,5 @@
+"""IRC transport implementation."""
+
 import re
 import asyncio
 import functools
@@ -12,6 +14,10 @@ __all__ = ["ConnectInfo", "ClientProtocol", "Message", "response"]
 
 
 class User:
+    """
+    An IRC user.
+
+    """
     def __init__(self, nick, username, host):
         self.nick = nick
         self.username = username
@@ -21,6 +27,16 @@ class User:
 
     @staticmethod
     def parse(s: str):
+        """
+        Parses an IRC user string into a coherent user object. This is the regular expression used:
+
+        ```
+        (?P<nick>[^!]+)!(?P<user>[^@]+)@(?P<host>.+)
+        ```
+
+        :param s: the username string to be parsed.
+        :raises: ValueError when the user string does not match the regular expression.
+        """
         match = User.RE.match(s)
         if not match:
             raise ValueError("Invalid user pattern")
@@ -35,19 +51,23 @@ class ConnectInfo(common.ConnectInfo):
     IRC-specific connect info.
     """
     def __init__(self, server: str, nicks: Sequence[str], user: str,
-                 port: Optional[int]=None, server_pass: Optional[str]=None, ssl: Optional[bool]=None, **_):
+                 port: Optional[int] = None, server_pass: Optional[str] = None,
+                 ssl: Optional[bool] = None, **_):
         """
         Creates a new ConnectInfo object for IRC connections.
         :param server: IRC the server to connect to.
-        :param nicks: the list of nicknames to attempt to use. There must be at least one nickname in this list.
+        :param nicks: the list of nicknames to attempt to use. There must be at least one nickname
+                      in this list.
         :param user: the username to use on the IRC server.
         :param port: the port to connect to the IRC server on. Optional. Default is 6667.
-        :param server_pass: the password used to connect to the IRC server. Optional. Default is None.
-        :param ssl: whether or not to use SSL to connect to the IRC server. Optional. Default is True if port is 6697,
-                    otherwise False.
+        :param server_pass: the password used to connect to the IRC server. Optional. Default is
+                            None.
+        :param ssl: whether or not to use SSL to connect to the IRC server. Optional. Default is
+                    True if port is 6697, otherwise False.
         """
-        if len(nicks) == 0:
-            raise ValueError("number of nicks specified in ConnectInfo must contain at least one nick")
+        if not nicks:
+            raise ValueError("number of nicks specified in ConnectInfo "
+                             "must contain at least one nick")
         # default port 6667
         if port is None:
             port = 6667
@@ -75,7 +95,7 @@ class Message(object):
         self.prefix = prefix
         try:
             self.user = User.parse(self.prefix)
-        except:
+        except ValueError:
             self.user = None
         self.command = command
         self.params = params
@@ -93,9 +113,11 @@ class Message(object):
             message += " {}".format(' '.join(self.params))
         return message
 
-    MESSAGE_RE = re.compile(
-        '^(:(?P<prefix>[^ ]+) )?(?P<command>[a-zA-Z]+|[0-9]{3})(?P<params>( [^: \r\n]+)*)(?P<trailing> :[^\r\n]+)?$',
-        re.MULTILINE)
+    MESSAGE_RE = re.compile('^(:(?P<prefix>[^ ]+) )?'
+                            '(?P<command>[a-zA-Z]+|[0-9]{3})'
+                            '(?P<params>( [^: \r\n]+)*)'
+                            '(?P<trailing> :[^\r\n]+)?$',
+                            re.MULTILINE)
     @staticmethod
     def parse(line: str):
         """
@@ -111,7 +133,10 @@ class Message(object):
         command = match.group('command')
         try:
             command = response.CODE_TO_NAME[int(command)]
-        except: pass
+        except (KeyError, ValueError):
+            # it's okay if we can't translate this code - it just means we won't have a legit
+            # translation of what it means
+            pass
         params = list(filter(len, match.group('params').split(' ')))
         trailing = match.group('trailing')
         if trailing:
@@ -146,10 +171,11 @@ class ClientProtocol(asyncio.Protocol, LogMixin, metaclass=ABCMeta):
         self.info("connection lost")
         self.transport = None
         # TODO : auto-reconnect module
-        # TODO : auto-reconnect module would require coupling between the protocol and the chatbot? chatbot is not
-        #        aware of its connection to any server.
+        # TODO : auto-reconnect module would require coupling between the protocol and the chatbot?
+        #        chatbot is not aware of its connection to any server.
 
-    def _make_message(self, command: str, *params: str):
+    @staticmethod
+    def _make_message(command: str, *params: str):
         """
         Constructs an IRC message from a command and its params.
         """
@@ -160,7 +186,8 @@ class ClientProtocol(asyncio.Protocol, LogMixin, metaclass=ABCMeta):
         Sends a message to the IRC server.
         :param msg: the message structured to send.
         """
-        # use a variable here because otherwise it gets calculated twice; in the log and when it's used
+        # use a variable here because otherwise it gets calculated twice; in the log and when it's
+        # used
         msg_str = str(msg)
         self.debug("%s", msg_str)
         self.transport.write("{}\r\n".format(msg_str).encode())
@@ -171,7 +198,7 @@ class ClientProtocol(asyncio.Protocol, LogMixin, metaclass=ABCMeta):
         :param command: the command to construct
         :param params: any parameters the command expects
         """
-        self._send_message(self._make_message(command, *params))
+        self._send_message(ClientProtocol._make_message(command, *params))
 
     def _schedule_command(self, timeout, command: str, *params: str):
         """
@@ -181,4 +208,4 @@ class ClientProtocol(asyncio.Protocol, LogMixin, metaclass=ABCMeta):
         loop = asyncio.get_event_loop()
         send_command = functools.partial(self._send_command, command, *params)
         loop.call_later(timeout, send_command)
-        # TODO : store the callback from loop.call_later() somewhere, so we can cancel messages or whatever
+        # TODO : store the callback from loop.call_later() somewhere, so we can cancel messages
