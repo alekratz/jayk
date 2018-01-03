@@ -2,8 +2,8 @@ from jayk.cli.module import JaykMeta
 import string
 
 def message_is_what(message):
-    filtered_message = "".join(c for c in message if c not in (string.punctuation+string.whitespace))
-    return filtered_message.lower() == "what"
+    message = message.strip(string.punctuation+string.whitespace).lower()
+    return message == "what"
 
 class Whatbot(metaclass=JaykMeta):
     def __init__(self, **kwargs):
