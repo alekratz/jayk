@@ -17,3 +17,15 @@ class Whatbot(metaclass=JaykMeta):
             client.send_message(room, reply)
         else:
             self._message_to_repeat = msg
+    
+    @staticmethod
+    def author():
+        return "Maxpm"
+    
+    @staticmethod
+    def about():
+        return "If someone says \"what\" and nothing else, the last message is helpfully shouted at them."
+    
+    @staticmethod
+    def name():
+        return "Whatbot"
