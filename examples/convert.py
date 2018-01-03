@@ -49,8 +49,9 @@ CONVERT_RE = re.compile(r'(?P<X>[+-]?[0-9]+(\.[0-9]+)?) ?'
                         r'(?P<Yunit>[a-zA-Z\/_]+)')
 
 # Regular expression used for passive (interjected) conversion queries
-PASSIVE_RE = re.compile(r'(?P<X>[+-]?[0-9]+(\.[0-9]+)?) ?'
-                        r'(?P<Xunit>[a-zA-Z\/_]+)')
+PASSIVE_RE = re.compile(r'(?P<Filter>[^0-9\s+-]?)'
+                        r'(?P<X>[+-]?[0-9]+(\.[0-9]+)?) ?'
+                        r'(?P<Xunit>[a-zA-Z\/_]+)\b')
 
 # Strange aliases that refuse to be converted, or are converted in a weird way
 UNIT_ALIASES = {
@@ -150,6 +151,11 @@ class Convert(metaclass=JaykMeta):
         if match is None:
             return
         try:
+            # Filter rule grabs any word character *before* the string; if anything was placed in
+            # the filter, then we know that this isn't a string we want to inspect
+            filt = match.group('Filter')
+            if filt:
+                return
             value = float(match.group('X'))
             unit = unit_fixup(match.group('Xunit'))
             measure = guess_unit(value, unit, measures=[Distance, Speed, Temperature, Weight])
