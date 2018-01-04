@@ -8,15 +8,16 @@ def message_is_what(message):
 class Whatbot(metaclass=JaykMeta):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._last_message = None
-        self._last_sender = None
+        self._last_message = None # The message to shout back.
+        self._last_sender = None # Used to make sure we don't shout a user's own message back to them.
     
     def on_message(self, client, room, sender, msg):
-        if message_is_what(msg) and self._message_to_repeat is not None:
-            reply = sender.nick + ": " + self._message_to_repeat.upper()
+        if message_is_what(msg) and self._last_sender is not None and self._last_sender.username != sender.username:
+            reply = sender.nick + ": " + self._last_message.upper()
             client.send_message(room, reply)
         else:
-            self._message_to_repeat = msg
+            self._last_message = msg
+            self._last_sender = sender
     
     @staticmethod
     def author():
