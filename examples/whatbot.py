@@ -3,7 +3,7 @@ import string
 
 def message_is_what(message):
     message = message.strip(string.punctuation+string.whitespace).lower()
-    return message == "what"
+    return message in ("what", "wat")
 
 class Whatbot(metaclass=JaykMeta):
     def __init__(self, **kwargs):
