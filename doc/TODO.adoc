@@ -1,0 +1,110 @@
+= TODOs for jayk module
+:author: Alek Ratzloff
+:email: alekratz@gmail.com
+:revnumber: 1
+:revdate: 2018-01-18
+:revremark: All features that must be implemented for jayk v1.0 to be feature-complete.
+
+== Updating this document
+
+What follows are a list of TODO items that need to be implemented. This is a living document, so
+structure is vital for updating and understanding it. In the past, most of my TODO lists have been
+checkbox-based. However, I always found it difficult to determine when something should be checked
+and when something should be removed outright. Therefore, I plan on just removing things to mark
+their completion. Thanks to Git, we should have a nice history of things that have changed with this
+document - provided that the changes are well-documented.
+
+This document uses http://asciidoctor.org/docs/asciidoc-syntax-quick-reference[AsciiDoctor] syntax.
+When you update this document, please follow this checklist before committing and submitting a pull
+request:
+
+* Please double-check your grammar and spelling! Typos are impossible to eliminate completely, but
+  glaring typos leave a bad first impression.
+* With the exception of extra long strings that cannot be shorted (e.g., formatted AsciiDoc links),
+  all text should be truncated to 100 columns.
+* Update the `revdate` field at the top of the document with the date that you finished making your
+  changes to this document.
+* Increment the `revnumber`.
+* Consider adding yourself as an author. All authors are considered to receive equal credit, so only
+  add your name if you believe you deserve that recognition.
+** To expand, fixing a typo or two is not worthy of authorship recognition. Contributing a new
+   section or subsection, however, is.
+* Make a final render of the document using `asciidoctor` and look it over to make sure there are no
+  obvious errors.
+
+:sectlinks:
+:sectnums:
+== Documentation
+
+What follows is everything that should be documented before the 1.0 release. All documentation,
+except for the README, should live in the `doc/` directory at the root. We will not be using
+integrated wikis that come with version control - the documentation must live in the repository
+itself.
+
+* Quickstart guide for using the library's API.
+** This is covered in the README, but could be expanded into something less succinct and more
+   useful.
+* Quickstart guide for using the metaclass/command line API.
+** This is covered in the README, but could be expanded into something less succinct and more
+   useful.
+* Internals documentation for how everything fits together.
+** Code documentation is NOT sufficient. We need documents that cover every piece of the API.
+*** This could be considered something similar to the "HACKING" section that a lot of projects have.
+* Contributor's guide.
+** Documentation expectations.
+** Code formatting, code style.
+** Commit message style.
+** Pylint procedures.
+
+== Pylint
+
+What follows is everything that should be done with the pylintrc file before the 1.0 release. The
+overall goal for Pylint is for a 10.0/10.0 score to actually be achievable for the bounds of this
+project. Anything that _doesn't_ meet that score is incorrectly formatted and should be considered
+erroneous.
+
+* Determine which lints we still need to disable.
+** There are some lints that may have issues, because they concern valid code, but the linter isn't
+   smart enough to figure that out.
+** This is a really big issue for anything that uses the `JaykMeta` metaclass. It adds new members
+   and derivations to its subclasses, which pylint is unable to pick up on. Hopefully, there aren't
+   too many provided internal types that use this metaclass.
+* Determine if there are any lints that are currently disabled, that we wish to enable.
+
+== Protocol layer
+
+This section concerns all protocols and protocol API items that should be implemented and corrected
+before a v1.0 release.
+
+* Common "user" type for all protocols to use. This should be similar to the `ConnectInfo` type.
+** What if the identifier for a user is just a string, unlike IRC (which has username, realname,
+   nickname, etc).
+* Implement protocol for Slack and Discord.
+** How do we handle API keys without configuration at this level?
+* Auto-reconnect policies.
+
+=== IRC protocol
+
+* Support server password.
+
+== Chatbot layer
+
+* Handle nickname changes for the bot itself.
+
+== JaykMeta/CLI layer
+
+* The JaykMeta and CLI layer are not synonymous, but they are highly coupled. It would be a good
+  idea to de-couple these if possible.
+* Reimplement file watcher using Python's `asyncio` module instead of using IPC.
+
+=== Module system
+
+* Allow `HelpModule` built-in module to be customized in the configuration.
+** Allow disabling of the module.
+** Allow changing the base command from `!help` to something else to allow working around command
+   conflicts.
+* Implement module for nickserv authentication module for IRC connections.
+* Allow for protocol-specific modules.
+* Allow modules to access all other loaded modules' metadata.
+** This may need to be refined a bit more, since this could quickly turn things into spaghetti. On
+   the other hand, it would be useful to have for the built-in `HelpModule`.
