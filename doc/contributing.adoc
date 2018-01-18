@@ -1,7 +1,7 @@
 = Contributing
 :author: Alek Ratzloff
 :email: alekratz@gmail.com
-:revnum: 1
+:revnum: 2
 :revdate: 2018-01-18
 :revremark: Guide to making a pull request.
 :ext-relative: {outfilesuffix}
@@ -67,9 +67,20 @@ project in linear fashion. All commit messages SHOULD conform to this pattern:
   only a headline is fine.
 * Either an author with a "real name" footnote:["real name" is in quotes because on the internet,
   nobody knows you're a dog.] and email specified via `git config user.name` and `user.email`, or
-  with a signoff (using the `-s` flag in your `git commit` command).
+  with a signoff (using the `-s` flag in your `git commit` command - or added by hand, if you so
+  please).
 * You MAY include "closes", "fixes", etc terminology for closing GitHub issues. These are not
   required, but they aren't frowned upon, either.
+* Commit headlines SHOULD use the imperative mood, active voice, and present tense. For example:
+----
+Foo, bar, baz were added.   # bad - indicative mood, past tense, passive voice.
+Added foo, bar, and baz.    # bad - indicative mood, past tense.
+Adding foo, bar, and baz.   # bad - indicative mood.
+Adds foo, bar, and baz.     # bad - indicative mood.
+Add foo, bar, and baz.      # good! perfect! beautiful!
+----
+** It isn't the end of the world if you don't, but this is the original style of commit message. The
+   number one goal is conformity.
 
 The important part is describing _what_ was changed, and justification for it (if necessary). The
 git log should be useful to look back on to get a taste of the history of changes made to the
