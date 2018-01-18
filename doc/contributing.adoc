@@ -1,0 +1,81 @@
+= Contributing
+:author: Alek Ratzloff
+:email: alekratz@gmail.com
+:revnum: 1
+:revdate: 2018-01-18
+:revremark: Guide to making a pull request.
+:ext-relative: {outfilesuffix}
+
+There are two styles of contributions: pull requests, and issues. They are very different in nature,
+so they have their own sections here.
+
+:sectanchors:
+:sectnums:
+
+== Pull requests
+
+The sections below detail what you should do in order to maximize the chances of having your pull
+request accepted with the minimum number of revisions. It is unlikely that your pull request will be
+rejected outright, but please make sure you follow this guide before making one.
+
+If you find yourself in a position where you find the documentation for a part of a pull request to
+be insufficient or ambiguous that doesn't directly affect the code in your pull request, please
+submit it anyway, and ask your question alongside so we can straighten things out.
+
+A pull request that doesn't conform to these styles is *not* a death sentence, it just means that
+changes will be requested.
+
+=== Documentation 
+
+This project strives to have high-quality, up-to-date documentation. We follow the mantra that *any
+lack of documentation is a bug*. If you add or update a feature, it MUST be documented in these
+sections.
+
+Updating existing documentation and creating new documentation is itself documented in
+link:documentation-guide{ext-relative}[the documentation guide].
+
+=== Code style
+
+This is a list of things to keep in mind while writing and modifying code.
+
+* This project conforms to Python's https://www.python.org/dev/peps/pep-0008/[PEP8] style.
+  All code submitted MUST conform to this style.
+** Exceptions to this style are present throughout the codebase, but we still need to determine what
+   they are.
+* https://www.pylint.org/[Pylint] SHOULD be run before making a commit.
+** Since pylint has finicky defaults, we are still in the process of figuring out which rules to
+   disable and enable off of the default. For now, definitely use it, if only for a general style
+   guide.
+** Ideally, all code should be rated as 10.0/10.0 on pylint runs.
+* Four space indents. No exceptions.
+* ALL modules, methods, classes, etc. MUST have clear in-line documentation.
+* Try to follow the DRY footnote:[Don't Repeat Yourself] principle.
+* Comment the _why_, not the _what_. If your code is clear, we should be able to determine what it
+  is doing by doing a read-through.
+** Not everything is perfectly clear, all of the time. If that's the case, comment your messy code.
+* Meaningful names SHOULD be used for named things.
+
+=== Commit message style
+
+Commit messages are very important, since they document the changes that have been made to the
+project in linear fashion. All commit messages SHOULD conform to this pattern:
+
+* Headline, roughly 80 characters. Think of this as a subject to an email.
+* For larger changes, include at least 1-2 sentences of what was changed. Bullet lists are fine,
+  too.
+* For smaller changes (e.g. new comments, variable name changes, small documentation additions),
+  only a headline is fine.
+* Either an author with a "real name" footnote:["real name" is in quotes because on the internet,
+  nobody knows you're a dog.] and email specified via `git config user.name` and `user.email`, or
+  with a signoff (using the `-s` flag in your `git commit` command).
+* You MAY include "closes", "fixes", etc terminology for closing GitHub issues. These are not
+  required, but they aren't frowned upon, either.
+
+The important part is describing _what_ was changed, and justification for it (if necessary). The
+git log should be useful to look back on to get a taste of the history of changes made to the
+project.
+
+== Issues
+
+Presently, there is no procedure for making an issue in the repository. Until a template is
+conceived, just try to be as helpful as possible when making an issue.

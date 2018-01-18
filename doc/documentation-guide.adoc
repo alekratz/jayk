@@ -1,0 +1,64 @@
+= Documentation guide
+:author: Alek Ratzloff
+:email: alekratz@gmail.com
+:revnumber: 1
+:revdate: 2018-01-18
+:revremark: Procedures and checklist for creating and updating documentation within the project.
+
+Most documentation in this project is a living document, so structure is vital for updating and
+understanding it all. The main motivation for having a strict documentation style is so that
+everything looks uniform.
+
+:sectanchors:
+:sectnums:
+== Checklist
+
+Documentation uses http://asciidoctor.org/docs/asciidoc-syntax-quick-reference[AsciiDoctor] syntax.
+When you update documentation, please follow this checklist before committing and submitting a pull
+request:
+
+* Please double-check your grammar and spelling! Typos are impossible to eliminate completely, but
+  glaring typos leave a bad first impression.
+** Latin terms like "etc.", "et al.", "e.g.", and "i.e." must be used and abbreviated appropriately.
+   If you don't know the difference between these terms, educate yourself before using them.
+* Make sure that your style matches the style guide detailed in the section below.
+* Update the `revdate` field at the top of the document with the date that you finished making your
+  changes to this document.
+* Increment the `revnumber` as well.
+* Consider adding yourself as an author. All authors are considered to receive equal credit, so only
+  add your name if you believe you deserve that recognition.
+** To expand, fixing a typo or two is not worthy of authorship recognition. Contributing a new
+   section or subsection, however, is.
+* Make a final render of the document using `asciidoctor` and look it over to make sure there are no
+  obvious errors.
+
+== Style
+
+Generally, the style is dictated entirely by AsciiDoc's syntax. However, there are a few things that
+MUST be employed when writing documentation.
+
+* When making a new page, these points MUST be followed:
+** The filename is `kebab-case`.
+** The file exists in the `doc/` directory of the project root.
+** The title of the document matches the filename.
+* Documentation SHOULD follow https://tools.ietf.org/html/rfc2119[RFC 2119] for requirement levels.
+** Indicative requirement levels MUST be written in ALL CAPS.
+* With the exception of extra long strings that cannot be shorted (e.g., formatted AsciiDoc links),
+  all text MUST be split at 100 columns.
+* Split lines whose content starts with an indent (e.g. lists of things) MUST have a hanging indent.
+  For example:
+----
+This is okay:
+* This is a long line whose content had to
+  be split on a really short column.
+
+This is NOT okay:
+* This is a long line whose content had to
+be split on a really short column.
+----
+* Nth-level list items MUST NOT increase their indentation.
+* Use of first-person plural (e.g. "we", "us") SHOULD be used when referring to yourself.
+* Use of second-person singular (e.g. "you") SHOULD be used when referring to the reader.
+* Writing style SHOULD be as consistent as possible.
+* Section numbers and links SHOULD be used (using the `:sectanchors:` and `:sectnums:` directives)
+  unless it makes sense not to.
