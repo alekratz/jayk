@@ -17,8 +17,8 @@ well-documented.
 
 What follows is everything that should be documented before the 1.0 release. All documentation,
 except for the README, MUST live in the `doc/` directory at the root. We will not be using
-integrated wikis that come with version control - the documentation must live in the repository
-itself.
+integrated wikis that come with version control websites (e.g. GitHub, GitLab) - the documentation
+must live in the repository itself.
 
 * Start moving project name, modules, and documentation over to "omnibot" instead of "jayk".
 * Quickstart guide for using the library's API.
