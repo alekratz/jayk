@@ -1,7 +1,7 @@
 = Documentation guide
 :author: Alek Ratzloff
 :email: alekratz@gmail.com
-:revnumber: 1
+:revnumber: 2
 :revdate: 2018-01-18
 :revremark: Procedures and checklist for creating and updating documentation within the project.
 
@@ -60,5 +60,7 @@ be split on a really short column.
 * Use of first-person plural (e.g. "we", "us") SHOULD be used when referring to yourself.
 * Use of second-person singular (e.g. "you") SHOULD be used when referring to the reader.
 * Writing style SHOULD be as consistent as possible.
+* Writing SHOULD use English wherever possible. Not all people reading these documents speak English
+  as a first language - thus, this is not the place to show off your fancy vocabulary.
 * Section numbers and links SHOULD be used (using the `:sectanchors:` and `:sectnums:` directives)
   unless it makes sense not to.
