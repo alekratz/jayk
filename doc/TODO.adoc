@@ -1,7 +1,7 @@
 = TODO
 :author: Alek Ratzloff
 :email: alekratz@gmail.com
-:revnumber: 2
+:revnumber: 3
 :revdate: 2018-01-18
 :revremark: All features that must be implemented for jayk v1.0 to be feature-complete.
 
@@ -20,6 +20,7 @@ except for the README, MUST live in the `doc/` directory at the root. We will no
 integrated wikis that come with version control - the documentation must live in the repository
 itself.
 
+* Start moving project name, modules, and documentation over to "omnibot" instead of "jayk".
 * Quickstart guide for using the library's API.
 ** This is covered in the README, but could be expanded into something less succinct and more
    useful.
@@ -47,6 +48,14 @@ erroneous.
    and derivations to its subclasses, which pylint is unable to pick up on. Hopefully, there aren't
    too many provided internal types that use this metaclass.
 * Determine if there are any lints that are currently disabled, that we wish to enable.
+
+== Tests
+
+* Unit tests for expected functionality.
+** `jayk.cli.util.AttrDict` class
+* Integration tests for expected behavior.
+** How do we test protocols?
+** How do we test bot responses?
 
 == Protocol layer
 
