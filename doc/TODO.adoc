@@ -1,7 +1,7 @@
 = TODO
 :author: Alek Ratzloff
 :email: alekratz@gmail.com
-:revnumber: 3
+:revnumber: 4
 :revdate: 2018-01-18
 :revremark: All features that must be implemented for jayk v1.0 to be feature-complete.
 
@@ -21,9 +21,7 @@ integrated wikis that come with version control websites (e.g. GitHub, GitLab) -
 must live in the repository itself.
 
 * Start moving project name, modules, and documentation over to "omnibot" instead of "jayk".
-* Quickstart guide for using the library's API.
-** This is covered in the README, but could be expanded into something less succinct and more
-   useful.
+* Start moving away from using the core `jayk.chatbot` module for making bots in examples.
 * Quickstart guide for using the metaclass/command line API.
 ** This is covered in the README, but could be expanded into something less succinct and more
    useful.
@@ -76,6 +74,9 @@ before a v1.0 release.
 == Chatbot layer
 
 * Handle nickname changes for the bot itself.
+* Start moving this to be named "core".
+** Although bots that are driven solely by the core library should be possible, we should stop
+   encouraging use of it directly in documentation.
 
 == JaykMeta/CLI layer
 
