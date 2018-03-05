@@ -1,4 +1,3 @@
-from jayk.cli.module import JaykMeta, jayk_command
 import random
 import time
 import asyncio
@@ -7,6 +6,7 @@ import itertools
 import operator
 import sqlite3
 from string import punctuation
+from jayk.cli.module import JaykMeta, jayk_command
 
 
 class Wordbot(metaclass=JaykMeta):
@@ -85,7 +85,7 @@ class Wordbot(metaclass=JaykMeta):
         if sender.nick in self.ignore:
             return
         super().on_message(client, room, sender, msg)  # Let the base class do base message handling
-        word_set = set(filter(len, [word.strip(punctuation) for word in msg.split()]))
+        word_set = set(filter(len, [word.strip(punctuation) for word in msg.lower().split()]))
         matches = word_set & self.words
         if len(matches) > 0:
             nick = sender.nick
