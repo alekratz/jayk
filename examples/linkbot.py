@@ -11,6 +11,7 @@ import requests
 identity = lambda x: x
 url_re = re.compile("\S+://\S+")
 local_networks = ['127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '169.254.0.0/16']
+request_headers =  {'user-agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36'}
 
 
 class LinkbotError(Exception):
@@ -88,7 +89,7 @@ class Linkbot(metaclass=JaykMeta):
         # Get the request
         try:
             self.debug("getting title for %s", url)
-            r = requests.get(url)
+            r = requests.get(url, headers=request_headers)
         except Exception as ex:
             self.debug("invalid URL: %s", ex)
             return None
