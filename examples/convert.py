@@ -5,6 +5,8 @@ from jayk.cli.module import JaykMeta, jayk_command
 import re
 
 # Byte measurements
+
+
 class Storage(MeasureBase):
     STANDARD_UNIT = 'byte'
     UNITS = {
@@ -38,7 +40,7 @@ class Storage(MeasureBase):
         'petabyte': 'pb',
         'exabyte':  'eb',
         'zetabyte': 'zb',
-        'yottabyte':'yb',
+        'yottabyte': 'yb',
     }
 
 
@@ -128,6 +130,7 @@ PASSIVE_CONVERSIONS = {
     'mg': 'oz',
 }
 
+
 class Convert(metaclass=JaykMeta):
 
     def __init__(self, interject=False, *args, **kwargs):
@@ -143,7 +146,8 @@ class Convert(metaclass=JaykMeta):
 
     def on_message(self, client, room, sender, msg):
         global PASSIVE_RE, PASSIVE_CONVERSIONS
-        if not self.interject: return
+        if not self.interject:
+            return
         # normalize spaces
         msg = ' '.join(msg.split(' '))
         match = PASSIVE_RE.search(msg)
@@ -158,7 +162,8 @@ class Convert(metaclass=JaykMeta):
                 return
             value = float(match.group('X'))
             unit = unit_fixup(match.group('Xunit'))
-            measure = guess_unit(value, unit, measures=[Distance, Speed, Temperature, Weight])
+            measure = guess_unit(value, unit, measures=[
+                Distance, Speed, Temperature, Weight])
         except ValueError:
             return
         unit = measure.unit
@@ -167,10 +172,13 @@ class Convert(metaclass=JaykMeta):
             to_unit = PASSIVE_CONVERSIONS[unit]
             try:
                 to_value = getattr(measure, to_unit)
-                to_measure = guess_unit(to_value, to_unit, measures=[Distance, Speed, Temperature, Weight])
-                client.send_message(room, '{:.2f} {} ≈ {:.2f} {}'.format(measure.value, measure.unit, to_measure.value, to_measure.unit))
+                to_measure = guess_unit(to_value, to_unit, measures=[
+                                        Distance, Speed, Temperature, Weight])
+                client.send_message(room, '{:.2f} {} ≈ {:.2f} {}'.format(
+                    measure.value, measure.unit, to_measure.value, to_measure.unit))
             except Exception as ex:
-                self.error("Could not convert %s to %s: %s", measure, to_unit, ex)
+                self.error("Could not convert %s to %s: %s",
+                           measure, to_unit, ex)
                 return
 
     @jayk_command("!convert")
@@ -179,11 +187,13 @@ class Convert(metaclass=JaykMeta):
         match = CONVERT_RE.match(msg)
         if match is None:
             nick = sender.nick
-            client.send_message(room, '{}: Syntax is `!convert X UNIT_A to UNIT_B`')
+            client.send_message(
+                room, '{}: Syntax is `!convert X UNIT_A to UNIT_B`'.format(nick))
             return
         try:
             # measurements in the correct order that we want them checked
-            measures = [Distance, Area, Mass, Weight, Temperature, Time, Volume, Speed, Storage, Voltage, Current, Energy, Frequency, Resistance, Capacitance]
+            measures = [Distance, Area, Mass, Weight, Temperature, Time, Volume, Speed,
+                        Storage, Voltage, Current, Energy, Frequency, Resistance, Capacitance]
             value = float(match.group('X'))
             unit = unit_fixup(match.group('Xunit'))
             to_unit = unit_fixup(match.group('Yunit'))
@@ -193,20 +203,24 @@ class Convert(metaclass=JaykMeta):
             self.debug("Best guess for %s: %s", to_unit, to_measure.unit)
             to_unit = to_measure.unit
             to_value = getattr(measure, to_unit)
-            client.send_message(room, '{:.2f} {} ≈ {:.2f} {}'.format(value, unit, to_value, to_unit))
+            client.send_message(room, '{:.2f} {} ≈ {:.2f} {}'.format(
+                value, unit, to_value, to_unit))
         except ValueError as ex:
             nick = sender.nick
             client.send_message(room, '{}: {}'.format(nick, ex))
         except Exception as ex:
             nick = sender.nick
-            client.send_message(room, '{}: {}. Are you sure your units are compatible?'.format(nick, ex) + str(type(ex)))
+            client.send_message(room, '{}: {}. Are you sure your units are compatible?'.format(
+                nick, ex) + str(type(ex)))
 
     @staticmethod
-    def author(): return 'intercal'
+    def author():
+        return 'intercal'
 
     @staticmethod
-    def about(): return 'Use `!convert X UNIT_A to UNIT_B` to convert X number of UNIT_A to UNIT_B.'
+    def about():
+        return 'Use `!convert X UNIT_A to UNIT_B` to convert X number of UNIT_A to UNIT_B.'
 
     @staticmethod
-    def name(): return 'Convert'
-
+    def name():
+        return 'Convert'
