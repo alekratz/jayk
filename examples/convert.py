@@ -179,7 +179,7 @@ class Convert(metaclass=JaykMeta):
         match = CONVERT_RE.match(msg)
         if match is None:
             nick = sender.nick
-            client.send_message(room, '{}: Syntax is `!convert X UNIT_A to UNIT_B`')
+            client.send_message(room, '{}: Syntax is `!convert X UNIT_A to UNIT_B`'.format(nick))
             return
         try:
             # measurements in the correct order that we want them checked
@@ -202,11 +202,14 @@ class Convert(metaclass=JaykMeta):
             client.send_message(room, '{}: {}. Are you sure your units are compatible?'.format(nick, ex) + str(type(ex)))
 
     @staticmethod
-    def author(): return 'intercal'
+    def author():
+        return 'intercal'
 
     @staticmethod
-    def about(): return 'Use `!convert X UNIT_A to UNIT_B` to convert X number of UNIT_A to UNIT_B.'
+    def about():
+        return 'Use `!convert X UNIT_A to UNIT_B` to convert X number of UNIT_A to UNIT_B.'
 
     @staticmethod
-    def name(): return 'Convert'
+    def name():
+        return 'Convert'
 
